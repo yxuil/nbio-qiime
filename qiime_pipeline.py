@@ -8,6 +8,7 @@ import glob
 import math
 import csv
 import collections
+from Bio import SeqIO
 
 
 script_path = os.path.dirname(os.path.realpath(__file__)) #'/mnt/grl/brc/application/qiime_pipeline_jiang/'
@@ -24,6 +25,8 @@ class DenoisePipeline(object):
   max_seq_length = 1000
   min_qual_score = 20
   qual_score_window = 50
+  min_overlap = 20
+  max_overlap = 100
   help = False
 
 
@@ -50,8 +53,8 @@ class DenoisePipeline(object):
 
 
   def get_params(self):
-    letters = 'i:,o:,m:,n:,l:,L:,q:,w:,h'
-    keywords = ['input-dir=', 'output-dir=', 'map=', 'num_cpus=', 'min_seq_length=', 'max_seq_length=', 'min_qual_score=', 'qual_score_window=', 'help']
+    letters = 'i:,o:,m:,n:,l:,L:,q:,w:,p:,P:,h'
+    keywords = ['input-dir=', 'output-dir=', 'map=', 'num_cpus=', 'min_seq_length=', 'max_seq_length=', 'min_qual_score=', 'qual_score_window=', 'min_overlap', 'max_overlap', 'help']
     options, extraparams = getopt.getopt(sys.argv[1:], letters, keywords)
     for o,p in options:
       if o in ['-i', '--input-dir']:
@@ -92,7 +95,17 @@ class DenoisePipeline(object):
         if p.isdigit():
           self.qual_score_window = p
         else:
-          raise Exception("The quality score window is not a number")      
+          raise Exception("The quality score window is not a number")
+      elif o in ['-p', '--min_overlap']:
+        if p.isdigit():
+          self.min_overlap = p
+        else:
+          raise Exception("Minimum overlap is not a number")
+      elif o in ['-P', '--max_overlap']:
+        if p.isdigit():
+          self.max_overlap = p
+        else:
+          raise Exception("Maximum overlap is not a number")      
       elif o in ['-h', '--help']:
         self.print_help()
         self.help = True
@@ -114,9 +127,11 @@ class DenoisePipeline(object):
     lines=f1.readlines()
     n=2                                        #Samples start on 3rd line
     while n < len(lines):
-      self.filename = lines[n].split('\t')[5]  #Filename is 6th column.
+      self.filename = lines[n].split('\t')[4]
+      self.pairdreads = lines[n].split('\t')[5]  #Filename is 6th column.
       self.fileid = self.filename.split('.')[0]
       fileformat = self.filename.split('.')[-1]
+      fileformat2 = self.filename.split('.')[-2]
       self.sampleid = lines[n].split('\t')[0]
       self.fprimer = lines[n].split('\t')[2]
       self.rprimer = lines[n].split('\t')[6]
@@ -132,8 +147,8 @@ class DenoisePipeline(object):
       f2.write(lines[n])    
       f2.close()
 
-      if not os.path.exists(self.output + "/" + self.sampleid):
-        os.makedirs(self.output + "/" + self.sampleid)
+      if not os.path.exists(self.output + "/" + self.sampleid + "/converted_seqs/"):
+        os.makedirs(self.output + "/" + self.sampleid + "/converted_seqs/")
 
 
       if fileformat == 'sff':
@@ -142,12 +157,18 @@ class DenoisePipeline(object):
 
       elif fileformat == 'bam':
         print (str(n-1)+ " " + self.filename + ' is being converted...')
-        os.system("/mnt/software/tophat2/bam2fastx --fastq " + self.input + "/" + self.filename + " >> " + self.output + "/" + self.sampleid + "/converted.fastq")
-        print ("  " + self.filename + ' is being filtered...')
+        os.system("/mnt/software/tophat2/bam2fastx --fastq " + self.input + "/" + self.filename + " >> " + self.output + "/" + self.sampleid + "/converted_seqs/seqs.fastq")
+        SeqIO.convert(self.output + "/" + self.sampleid + "/converted_seqs/seqs.fastq", "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs.qual", "qual")
+        SeqIO.convert(self.output + "/" + self.sampleid + "/converted_seqs/seqs.fastq", "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs.fasta", "fasta")
         self.filter_fq()
         
+      elif fileformat2 == 'fastq' and fileformat == 'gz':
+        print (str(n-1)+ " Merging " + self.filename + " and " + self.pairdreads)
+        self.filter_miseq()
+
       elif fileformat == 'fastq' or fileformat == 'fq':
-        os.system ("cp " + self.input + "/" + self.filename + " " + self.output + "/" + self.sampleid + "/converted.fastq")
+        SeqIO.convert(self.input + "/" + self.filename, "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs.qual", "qual")
+        SeqIO.convert(self.input + "/" + self.filename, "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs_.fasta", "fasta")
         print (str(n-1)+ " " + self.filename + ' is being filtered...')
         self.filter_fq()
 
@@ -167,23 +188,17 @@ class DenoisePipeline(object):
 
   def filter_fq(self):
 
-    #split fastq into fasta and qual
-    from Bio import SeqIO
-    SeqIO.convert(self.output + "/" + self.sampleid + "/converted.fastq", "fastq", self.output + "/" + self.sampleid + "/converted.qual", "qual")
-    SeqIO.convert(self.output + "/" + self.sampleid + "/converted.fastq", "fastq", self.output + "/" + self.sampleid + "/converted.fasta", "fasta")
-
-    #run split_lib
     print "  Running split_libraries..." 
-    split_lib_command = "split_libraries.py -b 0 -z truncate_only -g -o " + self.output + "/" + self.sampleid + "/slout -f " + self.output + "/" + self.sampleid + "/converted.fasta -q " + self.output + "/" + self.sampleid + "/converted.qual -m " + self.output + "/split_maps/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
+    split_lib_command = "split_libraries.py -b 0 -z truncate_only -g -o " + self.output + "/" + self.sampleid + "/slout -f " + self.output + "/" + self.sampleid + "/converted_seqs/seqs.fasta -q " + self.output + "/" + self.sampleid + "/converted_seqs/seqs.qual -m " + self.output + "/split_maps/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
     os.system(split_lib_command)
 
     print "  Trimming reverse compliment sequences of the primers..."
-    if not os.path.exists(self.output + "/" + self.sampleid + "/cutadapt_fna/"):
-      os.makedirs(self.output + "/" + self.sampleid + "/cutadapt_fna/")
-    log = self.output + "/" + self.sampleid + "/cutadapt_fna/cutadapt_log"
-    (open(log, 'w')).close()
-    os.system("cutadapt -a " +  self.fprimer_rc + " -o " + self.output + "/" + self.sampleid + "/cutadapt_fna/ftrimmed.fna " + self.output + "/" + self.sampleid + "/slout/seqs.fna > " + log)
-    os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/" + self.sampleid + "/cutadapt_fna/rtrimmed.fna " + self.output + "/" + self.sampleid + "/cutadapt_fna/ftrimmed.fna >> " + log)
+    if not os.path.exists(self.output + "/" + self.sampleid + "/trimmed_seqs/"):
+      os.makedirs(self.output + "/" + self.sampleid + "/trimmed_seqs/")
+    trim_log = self.output + "/" + self.sampleid + "/trimmed_seqs/cutadapt_log"
+    (open(trim_log, 'w')).close()
+    os.system("cutadapt -a " +  self.fprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna " + self.output + "/" + self.sampleid + "/slout/seqs.fna > " + trim_log)
+    os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/rtrimmed.fna " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna >> " + trim_log)
 
     self.remove_chimeras()
 
@@ -195,27 +210,27 @@ class DenoisePipeline(object):
   def denoise_sff(self):
       
     print ("  Processing the .sff file...")
-    os.system("process_sff.py -f -i " + self.input + "/" + self.filename + " -o " + self.output + "/" + self.sampleid + "/sffout")
+    os.system("process_sff.py -f -i " + self.input + "/" + self.filename + " -o " + self.output + "/" + self.sampleid + "/converted_seqs")
 
     print "  Running split_libraries..." 
-    split_lib_command = "split_libraries.py -b 0 -z truncate_only -g -o " + self.output + "/" + self.sampleid + "/slout -f " + self.output + "/" + self.sampleid + "/sffout/" + self.fileid + ".fna -q " + self.output + "/" + self.sampleid + "/sffout/" + self.fileid + ".qual -m " + self.output + "/split_maps/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
+    split_lib_command = "split_libraries.py -b 0 -z truncate_only -g -o " + self.output + "/" + self.sampleid + "/slout -f " + self.output + "/" + self.sampleid + "/converted_seqs/" + self.fileid + ".fna -q " + self.output + "/" + self.sampleid + "/converted_seqs/" + self.fileid + ".qual -m " + self.output + "/split_maps/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
     os.system(split_lib_command)
 
     print "  Running denoise_wrapper..."
-    denoise_wrapper_command = "denoise_wrapper.py -v -i " + self.output + "/" + self.sampleid + "/sffout/" + self.fileid + ".txt -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -o " + self.output + "/" + self.sampleid + "/dwout/ -m " + self.output + "/split_maps/" + self.singlemap + " --force_overwrite"
+    denoise_wrapper_command = "denoise_wrapper.py -v -i " + self.output + "/" + self.sampleid + "/converted_seqs/" + self.fileid + ".txt -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -o " + self.output + "/" + self.sampleid + "/dwout/ -m " + self.output + "/split_maps/" + self.singlemap + " --force_overwrite"
     os.system(denoise_wrapper_command)
 
     print "  Running inflate_denoiser..."
-    inflate_denoiser_command = "inflate_denoiser_output.py -c " + self.output + "/" + self.sampleid + "/dwout/centroids.fasta -s " + self.output + "/" + self.sampleid + "/dwout/singletons.fasta -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -d " + self.output + "/" + self.sampleid + "/dwout/denoiser_mapping.txt -o " + self.output + '/' + self.sampleid + "/inflate_denoiser_output.fna"
+    inflate_denoiser_command = "inflate_denoiser_output.py -c " + self.output + "/" + self.sampleid + "/dwout/centroids.fasta -s " + self.output + "/" + self.sampleid + "/dwout/singletons.fasta -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -d " + self.output + "/" + self.sampleid + "/dwout/denoiser_mapping.txt -o " + self.output + '/' + self.sampleid + "/denoiser.fna"
     os.system(inflate_denoiser_command)
 
     print "  Trimming reverse compliment sequences of the primers..."
-    if not os.path.exists(self.output + "/" + self.sampleid + "/cutadapt_fna/"):
-      os.makedirs(self.output + "/" + self.sampleid + "/cutadapt_fna/")
-    log = self.output + "/" + self.sampleid + "/cutadapt_fna/cutadapt_log"
+    if not os.path.exists(self.output + "/" + self.sampleid + "/trimmed_seqs/"):
+      os.makedirs(self.output + "/" + self.sampleid + "/trimmed_seqs/")
+    log = self.output + "/" + self.sampleid + "/trimmed_seqs/cutadapt_log"
     (open(log, 'w')).close()
-    os.system("cutadapt -a " +  self.fprimer_rc + " -o " + self.output + "/" + self.sampleid + "/cutadapt_fna/ftrimmed.fna " + self.output + "/" + self.sampleid + "/inflate_denoiser_output.fna > " + log)
-    os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/" + self.sampleid + "/cutadapt_fna/rtrimmed.fna " + self.output + "/" + self.sampleid + "/cutadapt_fna/ftrimmed.fna >> " + log)
+    os.system("cutadapt -a " +  self.fprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna " + self.output + "/" + self.sampleid + "/denoiser.fna > " + log)
+    os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/rtrimmed.fna " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna >> " + log)
     
     self.remove_chimeras()
 
@@ -224,12 +239,43 @@ class DenoisePipeline(object):
 
 
 
+  def filter_miseq(self):
+
+    if not os.path.exists(self.output + "/" + self.sampleid + "/merged_fastq/"):
+      os.makedirs(self.output + "/" + self.sampleid + "/merged_fastq/")
+    flash_log = self.output + "/" + self.sampleid + "/merged_fastq/flash_log"
+    (open(flash_log, 'w')).close()
+    os.system ("/home/BIOTECH/jiang/FLASH-1.2.7/flash " + self.input + "/" + self.filename + " " + self.input + "/" + self.pairdreads + " -d " + self.output + "/" + self.sampleid + "/merged_fastq/ -o flash -m " + str(self.min_overlap) + " -M " + str(self.max_overlap) + " > " + flash_log)
+
+    print "  Trimming primer sequences..."
+    if not os.path.exists(self.output + "/" + self.sampleid + "/trimmed_seqs/"):
+      os.makedirs(self.output + "/" + self.sampleid + "/trimmed_seqs/")
+    log = self.output + "/" + self.sampleid + "/trimmed_seqs/cutadapt_log"
+    (open(log, 'w')).close()
+    os.system("cutadapt -b " +  self.fprimer + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fastq " + self.output + "/" + self.sampleid + "/merged_fastq/flash.extendedFrags.fastq > " + log)
+    os.system("cutadapt -b " +  self.rprimer + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fastq " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fastq >> " + log)
+
+    SeqIO.convert(self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fastq", "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs.qual", "qual")
+    SeqIO.convert(self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fastq", "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs.fasta", "fasta")
+
+    print "  Running split_libraries..." 
+    split_lib_command = "split_libraries.py -b 0 -p -g -o " + self.output + "/" + self.sampleid + "/slout -f " + self.output + "/" + self.sampleid + "/converted_seqs/seqs.fasta -q " + self.output + "/" + self.sampleid + "/converted_seqs/seqs.qual -m " + self.output + "/split_maps/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
+    os.system(split_lib_command)
+    
+    print "  Removing chimeras..."
+    if not os.path.exists(self.output + "/preprocessed_fna/"):
+      os.makedirs(self.output + "/preprocessed_fna/")
+    os.system("identify_chimeric_seqs.py -i " + self.output + "/" + self.sampleid + "/slout/seqs.fna -m usearch61 -o " + self.output + "/" + self.sampleid + "/chimeras/ --suppress_usearch61_ref")
+    os.system("filter_fasta.py -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -o " + self.output + "/preprocessed_fna/" + self.sampleid + "_chimeras_filtered.fna -s " + self.output + "/" + self.sampleid + "/chimeras/chimeras.txt -n")
+
+
+
   def remove_chimeras(self):
     print "  Removing chimeras..."
     if not os.path.exists(self.output + "/preprocessed_fna/"):
       os.makedirs(self.output + "/preprocessed_fna/")
-    os.system("identify_chimeric_seqs.py -i " + self.output + "/" + self.sampleid + "/cutadapt_fna/rtrimmed.fna -m usearch61 -o " + self.output + "/" + self.sampleid + "/usearch_checked_chimeras/ --suppress_usearch61_ref")
-    os.system("filter_fasta.py -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -o " + self.output + "/preprocessed_fna/" + self.sampleid + "_chimeras_filtered.fna -s " + self.output + "/" + self.sampleid + "/usearch_checked_chimeras/chimeras.txt -n")
+    os.system("identify_chimeric_seqs.py -i " + self.output + "/" + self.sampleid + "/trimmed_seqs/rtrimmed.fna -m usearch61 -o " + self.output + "/" + self.sampleid + "/chimeras/ --suppress_usearch61_ref")
+    os.system("filter_fasta.py -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -o " + self.output + "/preprocessed_fna/" + self.sampleid + "_chimeras_filtered.fna -s " + self.output + "/" + self.sampleid + "/chimeras/chimeras.txt -n")
 
 
 
@@ -240,7 +286,11 @@ class DenoisePipeline(object):
     os.system(run_QiimeReport_command)
          
       
-
+  def write_log(self):
+    pipeline_log = self.output + "/pipeline_log"
+    (open(pipeline_log, 'w')).close()
+    
+    
  
 
   def __init__(self):
