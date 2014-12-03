@@ -1,0 +1,9 @@
+assign_taxonomy:rdp_max_memory 12000
+pick_otus:enable_rev_strand_match True
+pick_otus:max_accepts 1
+pick_otus:max_rejects 8
+pick_otus:stepwords 8
+pick_otus:word_length 8
+assign_taxonomy:id_to_taxonomy_fp ~/dev/qiime_pipeline/gg_13_5_otus/taxonomy/97_otu_taxonomy.txt
+assign_taxonomy:reference_seqs_fp ~/dev/qiime_pipeline/gg_13_5_otus//rep_set/97_otus.fasta
+beta_diversity:metrics bray_curtis

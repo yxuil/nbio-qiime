@@ -9,7 +9,7 @@ import csv
 import collections
 import math
 
-script_path = os.path.dirname(os.path.realpath(__file__)) #'/mnt/grl/brc/application/qiime_pipeline_jiang/'
+script_path = os.path.dirname(os.path.realpath(__file__)) #'/mnt/grl/brc/application/qiime_pipeline.0.1/'
 sys.path.append(script_path)
 
 class QiimeReport(object):
@@ -84,46 +84,61 @@ class QiimeReport(object):
       os.system("sort_otu_table.py -i " + self.output + "/otus/otu_table.biom -s SampleID -m " + self.map + " -o " + self.output +"/otus/otu_table.biom")
     else:
       print ('Open-reference OTU picking...') 
-      os.system("pick_open_reference_otus.py -i " + self.input + " -o " + self.output + "/otus -r " + self.reference + " -f -a -O " + str(self.num_cpus))
-      os.system("sort_otu_table.py -i " + self.output + "/otus/otu_table_mc2_w_tax_no_pynast_failures.biom -s SampleID -m " + self.map + " -o " + self.output +"/otus/otu_table.biom")
+      ######the line below is added by Fenglou for debugging because it is missing -p, which seems important for fungi its analysis, use next statement for 16sRNA analysis#############
+      print("pick_open_reference_otus.py -i " + self.input + " -o " + self.output + "/otus -r " + self.reference + " -p /mnt/grl/brc/application/qiime_pipeline.0.1/its_pick_open_reference_otus_params.txt -f -a -O " + str(self.num_cpus))
+      os.system("pick_open_reference_otus.py -i " + self.input + " -o " + self.output + "/otus -r " + self.reference + " -p /mnt/grl/brc/application/qiime_pipeline.0.1/its_pick_open_reference_otus_params.txt -f -a -O " + str(self.num_cpus))
+      ######the line above is added by Fenglou for debugging#############
+      #print("pick_open_reference_otus.py -i " + self.input + " -o " + self.output + "/otus -r " + self.reference + " -f -a -O " + str(self.num_cpus))
+      #os.system("pick_open_reference_otus.py -i " + self.input + " -o " + self.output + "/otus -r " + self.reference + " -f -a -O " + str(self.num_cpus))
+      print("sort_otu_table.py -i " + self.output + "/otus/otu_table_mc2_w_tax.biom -s SampleID -m " + self.map + " -o " + self.output +"/otus/otu_table.biom")
+      os.system("sort_otu_table.py -i " + self.output + "/otus/otu_table_mc2_w_tax.biom -s SampleID -m " + self.map + " -o " + self.output +"/otus/otu_table.biom")
 
     print "Creating biom_table_summary..."
+    print("print_biom_table_summary.py -i " + self.output + "/otus/otu_table.biom > " + self.output + "/otus/biom_summary.txt")
     os.system("print_biom_table_summary.py -i " + self.output + "/otus/otu_table.biom > " + self.output + "/otus/biom_summary.txt")
 
 
     print "Making OTU heatmap..."
-    os.system("make_otu_heatmap_html.py -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/heatmap -n 1")
+    print("make_otu_heatmap_html.py -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/heatmap -n 1")
+    os.system("make_otu_heatmap_html.py -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/heatmap -n 1")
 
     print "Creating OTU network..."
-    os.system("make_otu_network.py -m " + self.map + " -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/network")
+    print("make_otu_network.py -m " + self.map + " -i " + self.output + "/otus/otu_table.biom -o " + self.output)
+    os.system("make_otu_network.py -m " + self.map + " -i " + self.output + "/otus/otu_table.biom -o " + self.output)
 
     print "Creating taxa summary plots..."
-    os.system("summarize_taxa_through_plots.py -f -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/taxa_summary -m " + self.map + " -p /mnt/grl/brc/application/qiime_pipeline_jiang/summarize_taxa_params.txt")
+    print("summarize_taxa_through_plots.py -f -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/taxa_summary -m " + self.map + " -p /mnt/grl/brc/application/qiime_pipeline.0.1/summarize_taxa_params.txt")
+    os.system("summarize_taxa_through_plots.py -f -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/taxa_summary -m " + self.map + " -p /mnt/grl/brc/application/qiime_pipeline.0.1/summarize_taxa_params.txt")
  
     print "Creating rarefaction plots..."
+    print("alpha_rarefaction.py -f -i " + self.output + "/otus/otu_table.biom -m " + self.map + " -o " + self.output +
+      "/arare/ -p /mnt/grl/brc/application/qiime_pipeline.0.1/alpha_params.txt -t " + self.output + "/otus/rep_set.tre -a -O " +str(self.num_cpus))
     os.system("alpha_rarefaction.py -f -i " + self.output + "/otus/otu_table.biom -m " + self.map + " -o " + self.output +
-      "/arare/ -p /mnt/grl/brc/application/qiime_pipeline_jiang/alpha_params.txt -t " + self.output + "/otus/rep_set.tre -a -O " +str(self.num_cpus))
+      "/arare/ -p /mnt/grl/brc/application/qiime_pipeline.0.1/alpha_params.txt -t " + self.output + "/otus/rep_set.tre -a -O " +str(self.num_cpus))
 
     print "Creating beta diversity plots..."
+    # use the minimum reads number as the parameter e for even sampling
     for item in open (self.output + "/otus/biom_summary.txt"):
       if "Min" in item:
         self.min_depth =str(int(float(item.strip()[5:])))
     print ('Depth of coverage for even sampling is ' + self.min_depth)   
+    print("beta_diversity_through_plots.py -f -i " + self.output + "/otus/otu_table.biom -m " + self.map + " -o " + self.output + "/bdiv -t " + self.output + "/otus/rep_set.tre -e " + self.min_depth)
     os.system("beta_diversity_through_plots.py -f -i " + self.output + "/otus/otu_table.biom -m " + self.map + " -o " + self.output + "/bdiv -t " + self.output + "/otus/rep_set.tre -e " + self.min_depth)
 
 
   def print_help(self):
     print '''
-    qiime_report_jiang.py is a part of the qiime pipeline for 16S rRNA metagenomic analysis. It can also run by itself, but the input data has to be in FASTA format. 
-    (-i, --input-dir) The input directory containing all the data you want to analyzed. 
+    qiime_report.py is a part of the qiime pipeline for 16S rRNA metagenomic analysis. It can also run by itself using a single FNA file as input.
+    Required Parameters:
+    (-i, --input-dir) The input FNA file.
     (-o, --output-dir) The output directory where you want the results to be located.
-    (-m, --map) The tab-delimited qiime mapping file that contains metadata for the samples to be analyzed. The BarcodeSequence column should be empty.
+    (-m, --map) The tab-delimited qiime mapping file that contains metadata for the samples to be analyzed.
     Optional Parameters:
     (-r, --reference) Reference database for OTU clustering. It should be in fasta format. If a reference is given, pick_open_reference_otus.py runs. If not, pick_de_novo_otus.py runs.
     (-n, --num_cpus) The number of cores to use for the parallel portions of the pipeline. [default: 2].
-    Other options: 
+    Other Options: 
     (-h, --help) Display this help dialogue and exit.
-    For complete information about this pipeline, please refer to the manual located in /mnt/grl/brc/application/qiime_pipeline_jiang/pipeline_manual.txt. 
+    For complete information about this pipeline, please refer to the manual.
     '''
  
   def generate_report(self):
@@ -132,8 +147,7 @@ class QiimeReport(object):
     ref_db = "greengenes"
 
     print "Generating report..."
-    os.system("mkdir -p "+outputDir+"/report_files/")
-    os.system("cp /mnt/grl/brc/application/qiime_pipeline_jiang/Workflow.png " + outputDir + "/report_files/Workflow.png")
+    os.system("cp /mnt/grl/brc/application/qiime_pipeline.0.1/Workflow.png " + outputDir + "/Workflow.png")
     f=open(outputDir+"/report.html","w")
     f.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n")
     f.write("<html>\n")
@@ -211,22 +225,22 @@ class QiimeReport(object):
     # The workflow
     f.write("<div class='left'><strong><a id='workflow' name='workflow'>Workflow Chart</a></strong></div><table>\n")
     f.write('<tr>\n')
-    f.write('<td class=center><img src="report_files/Workflow.png" alt="Workflow Chart"></td></tr>\n')
+    f.write('<td class=center><img src="Workflow.png" alt="Workflow Chart"></td></tr>\n')
     f.write('</table>\n')
     f.write('<hr>\n')
 
 
-    path = ('./otus/taxa_summary/taxa_summary_plots/bar_charts.html')
+    path = ('./taxa_summary/taxa_summary_plots/bar_charts.html')
     f.write("<div class=\"left\"><strong><a id=taxa_summary name=taxa_summary>Taxa Summary</a></strong></div>")
     f.write("<li><a href=\'" + path + "\'>View Full Interactive Taxa Summary</a></li>\n");
 
-    with open(outputDir + '/otus/taxa_summary/taxa_summary_plots/bar_charts.html', 'r') as bar_summary:
+    with open(outputDir + '/taxa_summary/taxa_summary_plots/bar_charts.html', 'r') as bar_summary:
       start=False
       for line in bar_summary:
         if start:
-  	  str = line.replace('a href=\'', 'a href=\'' + 'otus/taxa_summary/taxa_summary_plots/')
-	  str = str.replace('a href=\"', 'a href=\"' + 'otus/taxa_summary/taxa_summary_plots/')
-	  str = str.replace('img src=\'', 'img src=\'' + 'otus/taxa_summary/taxa_summary_plots/')
+  	  str = line.replace('a href=\'', 'a href=\'' + 'taxa_summary/taxa_summary_plots/')
+	  str = str.replace('a href=\"', 'a href=\"' + 'taxa_summary/taxa_summary_plots/')
+	  str = str.replace('img src=\'', 'img src=\'' + 'taxa_summary/taxa_summary_plots/')
 	  f.write(str)
         if line.find("otu_table_L6.txt") != -1:
 	  start = True
@@ -271,7 +285,7 @@ class QiimeReport(object):
 
     #Heatmap
     f.write("<div class='left'><strong><a id='heatmap' name='heatmap'>Heatmap</a></strong></div>")
-    path = './otus/heatmap/otu_table.html'
+    path = './heatmap/otu_table.html'
     f.write("<li><a href=\'" + path + "\'>View OTU Heatmap</a></li>\n");
     f.write("<hr>\n")
 
