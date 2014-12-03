@@ -99,7 +99,7 @@ class DenoisePipeline(object):
       os.system("split_libraries.py -b 0 -z truncate_only -g -o " + self.output + "/split_libraries_output -f " + self.output + "/process_sff_output/" + sffname.split(".")[0] + ".fna -q " + self.output + "/process_sff_output/" + sffname.split(".")[0] + ".qual -m " + self.map + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window))      
 
       print "Running denoise_wrapper..." 
-      os.system("denoise_wrapper.py -v -i " + self.output + "/process_sff_output/V1_V2pool1.txt -f " + self.output + "/split_libraries_output/seqs.fna -o " + self.output + "/denoise_wrapper_output -m " + self.map)
+      os.system("denoise_wrapper.py -v -i " + self.output + "/process_sff_output/" + sffname.split(".")[0] + ".txt -f " + self.output + "/split_libraries_output/seqs.fna -o " + self.output + "/denoise_wrapper_output -m " + self.map)
 
       print "Running inflate_denoiser..." 
       os.system("inflate_denoiser_output.py -c " + self.output + "/denoise_wrapper_output/centroids.fasta -s " + self.output + "/denoise_wrapper_output/singletons.fasta -f " + self.output + "/split_libraries_output/seqs.fna -d " + self.output + "/denoise_wrapper_output/denoiser_mapping.txt -o " + self.output + "/" + sffname.split(".")[0] + "_denoisted.fna")
