@@ -81,10 +81,11 @@ class QiimeReport(object):
     if(self.reference is None):
       print ('de novo OTU picking...')
       os.system("pick_de_novo_otus.py -i " + self.input + " -o " + self.output + "/otus -f -a -O " + str(self.num_cpus))
+      os.system("sort_otu_table.py -i " + self.output + "/otus/otu_table.biom -s SampleID -m " + self.map + " -o " + self.output +"/otus/otu_table.biom")
     else:
       print ('Open-reference OTU picking...') 
       os.system("pick_open_reference_otus.py -i " + self.input + " -o " + self.output + "/otus -r " + self.reference + " -f -a -O " + str(self.num_cpus))
-      os.system("cp " + self.output + "/otus/otu_table_mc2_w_tax_no_pynast_failures.biom " + self.output + "/otus/otu_table.biom")
+      os.system("sort_otu_table.py -i " + self.output + "/otus/otu_table_mc2_w_tax_no_pynast_failures.biom -s SampleID -m " + self.map + " -o " + self.output +"/otus/otu_table.biom")
 
     print "Creating biom_table_summary..."
     os.system("print_biom_table_summary.py -i " + self.output + "/otus/otu_table.biom > " + self.output + "/otus/biom_summary.txt")
@@ -97,9 +98,9 @@ class QiimeReport(object):
     os.system("make_otu_network.py -m " + self.map + " -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/network")
 
     print "Creating taxa summary plots..."
-    os.system("summarize_taxa_through_plots.py -f -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/taxa_summary -m " + self.map)
+    os.system("summarize_taxa_through_plots.py -f -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/taxa_summary -m " + self.map + " -p /mnt/grl/brc/application/qiime_pipeline_jiang/summarize_taxa_params.txt")
  
-    print "Creating rarefation plots..."
+    print "Creating rarefaction plots..."
     os.system("alpha_rarefaction.py -f -i " + self.output + "/otus/otu_table.biom -m " + self.map + " -o " + self.output +
       "/arare/ -p /mnt/grl/brc/application/qiime_pipeline_jiang/alpha_params.txt -t " + self.output + "/otus/rep_set.tre -a -O " +str(self.num_cpus))
 
@@ -227,7 +228,7 @@ class QiimeReport(object):
 	  str = str.replace('a href=\"', 'a href=\"' + 'otus/taxa_summary/taxa_summary_plots/')
 	  str = str.replace('img src=\'', 'img src=\'' + 'otus/taxa_summary/taxa_summary_plots/')
 	  f.write(str)
-        if line.find("otu_table_L5.txt") != -1:
+        if line.find("otu_table_L6.txt") != -1:
 	  start = True
 
     f.write("<hr>\n");

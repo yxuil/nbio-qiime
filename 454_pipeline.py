@@ -32,7 +32,7 @@ class DenoisePipeline(object):
       lines=f1.readlines()
       n=2                                       #Samples start on 3rd line
       while n < len(lines):
-        self.sffname = lines[n].split('\t')[4]  #Filename is 5th column.
+        self.sffname = lines[n].split('\t')[5]  #Filename is 6th column.
         self.sffid = self.sffname.split('.')[0]
         print ('The following sff file is being denoised: ' + self.sffname)
         print "  Getting metadata from the mapping file..."
@@ -122,22 +122,18 @@ class DenoisePipeline(object):
 
       print "  Running split_libraries..." 
       split_lib_command = "split_libraries.py -b 0 -z truncate_only -g -o " + self.output + "/" + self.sffid + "_split_libraries_output -f " + self.output + "/" + self.sffid + "_process_sff_output/" + self.sffid + ".fna -q " + self.output + "/" + self.sffid + "_process_sff_output/" + self.sffid + ".qual -m " + self.output + "/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
-      print split_lib_command
       os.system(split_lib_command) 
 
       print "  Running denoise_wrapper..."
       denoise_wrapper_command = "denoise_wrapper.py -v -i " + self.output + "/" + self.sffid + "_process_sff_output/" + self.sffid + ".txt -f " + self.output + "/" + self.sffid + "_split_libraries_output/seqs.fna -o " + self.output + "/" + self.sffid + "_denoise_wrapper_output -m " + self.output + "/" + self.singlemap 
-      print denoise_wrapper_command
       os.system(denoise_wrapper_command)
 
       print "  Running inflate_denoiser..."
       inflate_denoiser_command = "inflate_denoiser_output.py -c " + self.output + "/" + self.sffid + "_denoise_wrapper_output/centroids.fasta -s " + self.output + "/" + self.sffid + "_denoise_wrapper_output/singletons.fasta -f " + self.output + "/" + self.sffid + "_split_libraries_output/seqs.fna -d " + self.output + "/" + self.sffid + "_denoise_wrapper_output/denoiser_mapping.txt -o " + self.output + "/" + self.sffid + "_denoisted.fna"
-      print inflate_denoiser_command
       os.system(inflate_denoiser_command)
 
   def run_QiimeReport(self):
-    run_QiimeReport_command = "python " + os.path.join(script_path, "qiime_report_j1.py") + " -i " + self.output + "/combined_denoised.fna -o " + self.output + " -m " + self.map + " -n " + str(self.num_cpus)
-    print run_QiimeReport_command
+    run_QiimeReport_command = "python " + os.path.join(script_path, "qiime_report_j2.py") + " -i " + self.output + "/combined_denoised.fna -o " + self.output + " -m " + self.map + " -n " + str(self.num_cpus)
     os.system(run_QiimeReport_command)
          
        

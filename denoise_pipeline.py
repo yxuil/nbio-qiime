@@ -14,6 +14,10 @@ class DenoisePipeline(object):
   output = None
   map = None
   num_cpus = 2
+  min_seq_length = 200
+  max_seq_length = 1000
+  min_qual_score = 20
+  qual_score_window = 50
   help = False
   
   def main(self):
@@ -27,8 +31,8 @@ class DenoisePipeline(object):
       sys.exit()
 
   def get_params(self):
-    letters = 'i:,o:,m:,n:,h'
-    keywords = ['input-dir=', 'output-dir=', 'map=', 'num_cpus=', 'help']
+    letters = 'i:,o:,m:,n:,l:,L:,s:,w:,h'
+    keywords = ['input-dir=', 'output-dir=', 'map=', 'num_cpus=', 'min_seq_length=', 'max_seq_length=', 'min_qual_score=', 'qual_score_window=', 'help']
     options, extraparams = getopt.getopt(sys.argv[1:], letters, keywords)
     for o,p in options:
       if o in ['-i', '--input-dir']:
@@ -48,6 +52,26 @@ class DenoisePipeline(object):
           self.num_cpus = p
         else:
           raise Exception("Number of CPUs is not a number")
+      elif o in ['-l', '--min_seq_length']:
+        if p.isdigit():
+          self.min_seq_length = p
+        else:
+          raise Exception("Minimum length is not a number")
+      elif o in ['-L', '--max_seq_length']:
+        if p.isdigit():
+          self.max_seq_length = p
+        else:
+          raise Exception("Maximum length is not a number")
+      elif o in ['-s', '--min_qual_score']:
+        if p.isdigit():
+          self.min_qual_score = p
+        else:
+          raise Exception("Minimum quality score is not a number")
+      elif o in ['-w', '--qual_score_window']:
+        if p.isdigit():
+          self.qual_score_window = p
+        else:
+          raise Exception("The quality score window is not a number")      
       elif o in ['-h', '--help']:
         self.print_help()
         self.help = True
@@ -64,8 +88,7 @@ class DenoisePipeline(object):
   def run_commands(self):
 
       sffname = self.input.split("/")[-1]
-      print sffname.split(".")[0]
-      print "Processing .sff files..."
+      print ("Processing " + sffname +" ...")
       os.system("process_sff.py -f -i " + self.input + " -o " + self.output + "/process_sff_output")
        
 
@@ -73,7 +96,7 @@ class DenoisePipeline(object):
       os.system("check_id_map.py -b -m " + self.map + " -o " + self.output +"/map_output/")
 
       print "Running split_libraries..." 
-      os.system("split_libraries.py -o " + self.output + "/split_libraries_output -f " + self.output + "/process_sff_output/" + sffname.split(".")[0] + ".fna -q " + self.output + "/process_sff_output/" + sffname.split(".")[0] + ".qual -m " + self.map + " -b 0 -l 200 -L 400 -w 50 -g -z truncate_only")      
+      os.system("split_libraries.py -b 0 -z truncate_only -g -o " + self.output + "/split_libraries_output -f " + self.output + "/process_sff_output/" + sffname.split(".")[0] + ".fna -q " + self.output + "/process_sff_output/" + sffname.split(".")[0] + ".qual -m " + self.map + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window))      
 
       print "Running denoise_wrapper..." 
       os.system("denoise_wrapper.py -v -i " + self.output + "/process_sff_output/V1_V2pool1.txt -f " + self.output + "/split_libraries_output/seqs.fna -o " + self.output + "/denoise_wrapper_output -m " + self.map)
@@ -94,8 +117,12 @@ class DenoisePipeline(object):
     Parameters:
     (-i, --input-dir) Required. The .sff files to be denoised.
     (-o, --output-dir) Required. The directory where you want the output data to be located.
-    (-m, --map) Required. The tab-delimited qiime mapping file that contains metadata for the sample. Please read the manual for specifications on this file.
-    (-n, --num_cpus) Optional. The number of cores to use for the parallel portions of the pipeline. Default is 2.
+    (-m, --map) Required. The tab-delimited qiime mapping file that contains metadata for the sample. The BarcodeSequence column should be empty.
+    (-n, --num_cpus) Optional. The number of cores to use for the parallel portions of the pipeline. [default: 2].
+    (-l, --min-seq-length) Optional. Minimum sequence length, in nucleotides. [default: 200]
+    (-L, --max-seq-length) Optional. Maximum sequence length, in nucleotides. [default: 1000]
+    (-s, --min-qual-score) Optional. Min average qual score allowed in reads. [default: 20]
+    (-w, --qual_score_window) Optional. Enable sliding window test of quality scores. If the average score of a continuous set of w nucleotides falls below the threshold (see -s for default), the sequence is discarded. A good value would be 50. 0 (zero) means no filtering. Must pass a .qual file (see -q parameter) if this functionality is enabled. The behavior for this function is to discard any sequences where a bad window is found. [default: 50] 
     (-h, --help) Display this help dialogue and exit.  
     '''
 

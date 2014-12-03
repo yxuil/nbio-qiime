@@ -29,7 +29,7 @@ class DenoisePipeline(object):
       os.system("source /mnt/software/qiime/qiime_install/activate.sh")
 
       self.get_params()
-      print ("split_libraries parameters: -b 0 -z truncate_only -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window) + " -g")
+      print ("split_libraries parameters: -b 0 -z truncate_only -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -q " + str(self.min_qual_score) + " -w " + str(self.qual_score_window) + " -g")
       self.preprocess()
       print "The preprocessed.fna files are combined"
       os.system("cat " + self.output + "/preprocessed_fna/*preprocessed.fna > " + self.output + "/preprocessed_fna/combined.fna")
@@ -41,7 +41,7 @@ class DenoisePipeline(object):
       sys.exit()
 
   def get_params(self):
-    letters = 'i:,o:,m:,n:,l:,L:,s:,w:,h'
+    letters = 'i:,o:,m:,n:,l:,L:,q:,w:,h'
     keywords = ['input-dir=', 'output-dir=', 'map=', 'num_cpus=', 'min_seq_length=', 'max_seq_length=', 'min_qual_score=', 'qual_score_window=', 'help']
     options, extraparams = getopt.getopt(sys.argv[1:], letters, keywords)
     for o,p in options:
@@ -74,7 +74,7 @@ class DenoisePipeline(object):
           self.max_seq_length = p
         else:
           raise Exception("Maximum length is not a number")
-      elif o in ['-s', '--min_qual_score']:
+      elif o in ['-q', '--min_qual_score']:
         if p.isdigit():
           self.min_qual_score = p
         else:
@@ -166,8 +166,10 @@ class DenoisePipeline(object):
     print "  Trimming reverse compliment sequences of the primers..."
     if not os.path.exists(self.output + "/preprocessed_fna/"):
       os.makedirs(self.output + "/preprocessed_fna/")
-    os.system("cutadapt -a " +  self.fprimer_rc + " " + self.output + "/" + self.sampleid + "/slout/seqs.fna  > " + self.output + "/" + self.sampleid + "_trimmed.fna")
-    os.system("cutadapt -a " +  self.rprimer_rc + " " + self.output + "/" + self.sampleid + "_trimmed.fna > " + self.output + "/preprocessed_fna/" + self.sampleid + "_preprocessed.fna")
+    log = self.output + "/" + self.sampleid + "/cutadapt_log"
+    (open(log, 'w')).close()
+    os.system("cutadapt -a " +  self.fprimer_rc + " -o " + self.output + "/" + self.sampleid + "_trimmed.fna " + self.output + "/" + self.sampleid + "/slout/seqs.fna  > " + log)
+    os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/preprocessed_fna/" + self.sampleid + "_preprocessed.fna " + self.output + "/" + self.sampleid + "_trimmed.fna >> " + log)
     os.system("rm " + self.output + "/" + self.sampleid + "_trimmed.fna")
    
 
@@ -191,12 +193,14 @@ class DenoisePipeline(object):
       print "  Trimming reverse compliment sequences of the primers..."
       if not os.path.exists(self.output + "/preprocessed_fna/"):
         os.makedirs(self.output + "/preprocessed_fna/")
-      os.system("cutadapt -a " +  self.fprimer_rc + " " + self.output + '/' + self.sampleid + "/inflate_denoiser_output.fna > " + self.output + "/" + self.sampleid + "_trimmed.fna")
-      os.system("cutadapt -a " +  self.rprimer_rc + " " + self.output + "/" + self.sampleid + "_trimmed.fna > " + self.output + "/preprocessed_fna/" + self.sampleid + "_preprocessed.fna")
+      log = self.output + "/" + self.sampleid + "/cutadapt_log"
+      (open(log, 'w')).close()
+      os.system("cutadapt -a " +  self.fprimer_rc + " -o " + self.output + "/" + self.sampleid + "_trimmed.fna " + self.output + '/' + self.sampleid + "/inflate_denoiser_output.fna > " + log)
+      os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/preprocessed_fna/" + self.sampleid + "_preprocessed.fna " + self.output + "/" + self.sampleid + "_trimmed.fna >> " + log)
       os.system("rm " + self.output + "/" + self.sampleid + "_trimmed.fna")
 
   def run_QiimeReport(self):
-    run_QiimeReport_command = "python " + os.path.join(script_path, "qiime_report_j2.py") + " -i " + self.output + "/preprocessed_fna/combined.fna -o " + self.output + " -m " + self.map + " -n " + str(self.num_cpus)
+    run_QiimeReport_command = "python " + os.path.join(script_path, "qiime_report_jiang.py") + " -i " + self.output + "/preprocessed_fna/combined.fna -o " + self.output + " -m " + self.map + " -n " + str(self.num_cpus)
     os.system(run_QiimeReport_command)
          
        
@@ -209,16 +213,20 @@ class DenoisePipeline(object):
   def print_help(self):
     print '''
     qiime_pipeline_j2.py runs the qiime pipeline for 16S rRNA metagenomic analysis to denoise demultiplexed 454 data. It takes demultiplexed SFF, BAM, FASTQ, and FASTA files.
-    Parameters:
-    (-i, --input-dir) Required. 
-    (-o, --output-dir) Required. The directory where you want the output data to be located.
-    (-m, --map) Required. The tab-delimited qiime mapping file that contains metadata for the samples to be analyzed. The BarcodeSequence column should be empty.
-    (-n, --num_cpus) Optional. The number of cores to use for the parallel portions of the pipeline. [default: 2].
-    (-l, --min-seq-length) Optional. Minimum sequence length, in nucleotides. [default: 200]
-    (-L, --max-seq-length) Optional. Maximum sequence length, in nucleotides. [default: 1000]
-    (-s, --min-qual-score) Optional. Min average qual score allowed in reads. [default: 20]
-    (-w, --qual_score_window) Optional. Enable sliding window test of quality scores. If the average score of a continuous set of w nucleotides falls below the threshold (see -s for default), the sequence is discarded. A good value would be 50. 0 (zero) means no filtering. Must pass a .qual file (see -q parameter) if this functionality is enabled. The behavior for this function is to discard any sequences where a bad window is found. [default: 50] 
-    (-h, --help) Display this help dialogue and exit.  
+    Required Parameters:
+    (-i, --input-dir) The input directory containing all the data you want to analyzed. 
+    (-o, --output-dir) The output directory where you want the results to be located.
+    (-m, --map) The tab-delimited qiime mapping file that contains metadata for the samples to be analyzed. The BarcodeSequence column should be empty.
+    Optional Parameters:
+    (-r, --reference) Reference database for OTU clustering. It should be in fasta format. If a reference is given, pick_open_reference_otus.py runs. If not, pick_de_novo_otus.py runs.
+    (-n, --num_cpus) The number of cores to use for the parallel portions of the pipeline. [default: 2].
+    (-l, --min-seq-length) Minimum sequence length, in nucleotides. [default: 200]
+    (-L, --max-seq-length) Maximum sequence length, in nucleotides. [default: 1000]
+    (-q, --min-qual-score) Min average qual score allowed in reads. [default: 20]
+    (-w, --qual_score_window) Enable sliding window test of quality scores. If the average score of a continuous set of w nucleotides falls below the threshold (see -s for default), the sequence is discarded. A good value would be 50. 0 (zero) means no filtering. Must pass a .qual file (see -q parameter) if this functionality is enabled. The behavior for this function is to discard any sequences where a bad window is found. [default: 50]
+    Other options: 
+    (-h, --help) Display this help dialogue and exit.
+    For complete information about this pipeline, please refer to the manual located in /mnt/grl/brc/application/qiime_pipeline_jiang/pipeline_manual.txt. 
     '''
 
 
