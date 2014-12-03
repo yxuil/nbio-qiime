@@ -1,0 +1,8 @@
+#SampleID	BarcodeSequence	LinkerPrimerSequence	groupID	Treatment	Filename	ReversePrimer	Description
+# 6 samples from mouse guts  samples 7,8,17,18,37 and 38 have been barcoded with barcodes 9,10,11,12,13 and 14, respectively.
+007.rt182.steele	TGAGCGGAACGAT	AGAGTTTGATCMTGGCTCAG	control	control	IonXpress_009_R_2013_05_14_13_01_16_user_BES-66-Steele_test_Auto_user_BES-66-Steele_test_93.basecaller.bam	CTGCTGCCTYCCGTA	description	
+008.rt182.steele	CTGACCGAACGAT	AGAGTTTGATCMTGGCTCAG	control	control	IonXpress_010_R_2013_05_14_13_01_16_user_BES-66-Steele_test_Auto_user_BES-66-Steele_test_93.basecaller.bam	CTGCTGCCTYCCGTA	description
+017.rt182.steele	TCCTCGAATCGAT	AGAGTTTGATCMTGGCTCAG	low	low	IonXpress_011_R_2013_05_14_13_01_16_user_BES-66-Steele_test_Auto_user_BES-66-Steele_test_93.basecaller.bam	CTGCTGCCTYCCGTA	description
+018.rt182.steele	TAGGTGGTTCGAT	AGAGTTTGATCMTGGCTCAG	low	low	IonXpress_012_R_2013_05_14_13_01_16_user_BES-66-Steele_test_Auto_user_BES-66-Steele_test_93.basecaller.bam	CTGCTGCCTYCCGTA	description
+037.rt182.steele	TCTAACGGACGAT	AGAGTTTGATCMTGGCTCAG	high	high	IonXpress_013_R_2013_05_14_13_01_16_user_BES-66-Steele_test_Auto_user_BES-66-Steele_test_93.basecaller.bam	CTGCTGCCTYCCGTA	description
+038.rt182.steele	TTGGAGTGTCGAT	AGAGTTTGATCMTGGCTCAG	high	high	IonXpress_014_R_2013_05_14_13_01_16_user_BES-66-Steele_test_Auto_user_BES-66-Steele_test_93.basecaller.bam	CTGCTGCCTYCCGTA	description

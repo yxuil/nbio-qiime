@@ -1,0 +1,112 @@
+Design document for the Qiime pipeline script
+Andrew Bange
+aab233@cornell.edu
+last revision 6/20/2013
+
+
+
+PURPOSE OF THE QIIME PIPELINE
+The Qiime pipeline is designed to take 16s PGM reads directly from .BAM file to complete metagenomic analysis with minimal effort from the user.
+The pipeline should output alpha rarefaction plots, beta diversity plots, phylogenetic trees, OTU networks for visualization, and taxa summary plots.
+Depending on the size of your data set and the type of analysis you run, this pipeline can take upwards of two days to complete. In particular, 
+the pick OTUs step is considerably time consuming. Once finished, the data plots can be viewed in a normal web browser.
+
+
+
+INPUT SPECIFICATIONS
+The pipeline takes the following inputs:
+ Input directory (-i, --input-dir) A directory containing all the .bam files specified in the map file
+ Output directory (-o, --output-dir) The destination directory for the output files and folders. 
+ Map file (-m, --map) A map file containing all the metadata for each sample. See section on the map file details.
+ Number of cores (-c, --cores) The number of cores to use for the parallelized portions of the analysis. See the usage and performance notes. More cores is not necessarily faster. 
+ Minimum read length (-l, --length) The minimum length (in bp) of reads to pass quality filtering. 
+ Quality threshold (-q, --quality) The minimum quality threashold of reads to pass filtering. 
+ Reference database (-r, --reference) Optional. A reference database for OTU clustering. Should be in fasta format.
+
+
+
+NOTES ON USAGE AND PERFORMANCE
+If the user specifies a reference file (like greengenes), Qiime will use an open reference OTU picking algorithm that first checks the reference before creating a new OTU 
+for a read. If the user does not specify a reference file, all OTUs will be picked de novo. 
+When using a reference genome, it is important to note the space requirements for the analysis. The memory used increases linearly with the number of cores used and can be quite substantial. 
+The performance gained from using more cores can be lost if memory is filled and the swap partition is used. It is therefore advisable to run top when the OTU clustering begins in order to inspect memory usage. 
+An example of the space complexity is that the OTU clustering was using 15GB per core for a 1 million read input and the greengenes 13.5 database.
+
+
+
+MAP FILE SPECIFICATIONS
+The mapping file is a tab-delimited file containing metadata about each sample. It is very pickey about formatting though.
+The first line of the mapping file must be a comment header beginning with a pound '#' as in this example
+#SampleID	BarcodeSequence	LinkerPrimerSequence	groupID	Treatment	Filename	ReversePrimer	Description
+This specifies which columns represent what data.
+ The first column must be SampleID
+ The second file must be BarcodeSequence
+ The third column but me LinkerPrimerSequence
+subsuquent columns can be in any order but must contain:
+ Filename - the name of the .bam file containing this sample
+ ReversePrimer - the reverse primer sequence
+The last column must be Description
+
+No entry can be left blank. If there isn't data for a specific sample put NA in for the field. 
+Be careful of whitespace and copy-paste. Spaces will wreck the formatting and copy-paste in the terminal replaces tabs with spaces. 
+If you're using vim. Type 'set list' as a command to show all tabs as '^I'. The map file
+should contain no spaces only ^I when you use set list. type 'set nolist' to turn this feature off when done.
+
+
+
+OVERALL DESIGN STRUCTURE
+The pipeline is broken into three subscripts and one controller script. 
+The subscripts are:
+  bam_to_fastq.py
+  trim_primers.py
+  run_qiime.py
+qiime_pipeline.py is the main controller script. 
+
+
+bam_to_fastq.py
+As the name implies, this script simply converts the input BAM files to fastq files. 
+It looks through the map file, takes the input filenames and converts those files to fastq files using bam2fastx.
+It also renames the output to the sampleID specified in the map file. 
+It dumps these fastq files into the specified output directory
+
+
+trim_primers.py
+This script trims the 5' and 3' primers off the reads and merges the fastq files into one .fna file with the appropriate naming conventions for qiime.
+A possible expansion to this script is allowing the user to make it generate a fasta file and a qual file which qiime also supports. 
+This script reads the map file to gather data on the primers used and uses cutadpt to remove them.
+
+
+run_qiime.py
+This script calls the individual commands of the qiime pipeline using the properly formatted output of the previous two scripts.
+The current series of calls is:
+ pick_de_novo_otus.py or pick_open_reference_otus.py (depending on wether the user supplies a reference or not.)
+ print_biom_table_summary.py
+ make_otu_heatmap_html.py
+ make_otu_network.py
+ summarize_taxa_through_plots.py
+ alpha_rarefaction.py
+ beta_diversity_through_plots.py
+This pipeline is essentially the same one given in the qiime tutorial. In the future, more options will be avaliable.
+
+
+qiime_pipeline.py
+This simply calls bam_to_fastq.py trim_primers.py and run_qiime.py in order with the proper input and output specifications
+
+
+
+POSSIBLE IMPROVEMENTS
+Allow entering the pipeline midway though with either fastq files or fasta and qual files. 
+Consider moving subscripts to a bin folder so there's less clutter.
+IMPORTANT: run check map (or whatever it's called) before starting anything else in the pipeline. If the map fails, stop the pipeline and make the user fix it. 
+remove the parse map function from bam2fastq. it's unnecessary to write it twice. 
+increase options for analysis steps in the main pipeline. 
+--jackknifed diversity and such. 
+allow different methods for picking OTUs. currently, it's just uclust. 
+in the main thread, if directories aren't specified with a '/' at the end, add them.
+
+highly important improvements:
+  run check map
+  directory specification in main script
+
+
+
