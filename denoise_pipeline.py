@@ -2,7 +2,6 @@ import os
 import getopt
 import sys
 import time
-import run_qiime
 import glob
 import math
 
@@ -14,19 +13,24 @@ class DenoisePipeline(object):
   input = None
   output = None
   map = None
-  min_seq_length = None
-  max_seq_length = None
-  min_qual_score = 20
-  qual_score_window = 50
-  discard_bad_windows = None
   num_cpus = 2
   help = False
   
+  def main(self):
+    try:
+      os.system("source /mnt/software/qiime/qiime_install/activate.sh")
+      self.get_params()
+      self.run_commands()
+    except Exception as e:
+      print e
+      self.print_help()
+      sys.exit()
+
   def get_params(self):
-    letters = 'i:,o:,m:,l:,L:,s:,w:,g:,n:,h'
-    keywords = ['input-dir=', 'output-dir=', 'map=', 'min_seq_length=','max_seq_length=', 'min_qual_score=', 'qual_score_window=', 'discard_bad_windows=', 'num_cpus=', 'help']
-    opts, extraparams = getopt.getopt(sys.argv[1:], letters, keywords)
-    for o,p in opts:
+    letters = 'i:,o:,m:,n:,h'
+    keywords = ['input-dir=', 'output-dir=', 'map=', 'num_cpus=', 'help']
+    options, extraparams = getopt.getopt(sys.argv[1:], letters, keywords)
+    for o,p in options:
       if o in ['-i', '--input-dir']:
         if not os.path.exists(os.path.abspath(p)):
           raise Exception("Invalid input path")
@@ -39,28 +43,6 @@ class DenoisePipeline(object):
         if not os.path.exists(os.path.abspath(p)):
           raise Exception("Map file does not exit")
         self.map = os.path.abspath(p)
-      elif o in ['-l', '--min_seq_length']:
-        if p.isdigit():
-          self.min_seq_length = p
-        else:
-          raise Exception("Minimum length is not a number")
-      elif o in ['-L', '--max_seq_length']:
-        if p.isdigit():
-          self.max_seq_length = p
-        else:
-          raise Exception("Maximum length is not a number")
-      elif o in ['-s', '--min_qual_score']:
-        if p.isdigit():
-          self.min_qual_score = p
-        else:
-          raise Exception("Minimum quality score is not a number")
-      elif o in ['-w', '--qual_score_window']:
-        if p.isdigit():
-          self.qual_score_window = p
-        else:
-          raise Exception("The quality score window is not a number")
-      elif o in ['-g', '--discard_bad_windows']:
-        self.discard_bad_windows = True
       elif o in ['-n', '--num_cpus']:
         if p.isdigit():
           self.num_cpus = p
@@ -74,42 +56,28 @@ class DenoisePipeline(object):
         self.help = True
         print o + " is not a valid parameter."
         raise Exception("Improper Input to converter")
-    if self.help is False and (self.input is None or self.output is None or self.map is None or self.min_seq_length is None or self.max_seq_length is None):
+    if self.help is False and (self.input is None or self.output is None or self.map is None):
       raise Exception("A required parameter is missing.")
 
      
-  def run_pipeline(self):
-    try:
-      os.system("source /mnt/software/qiime/qiime_install/activate.sh")
-      print "Running sffinfo tools..."
-      os.system("mkdir " + self.output + "/sffinfo_output") 
-      os.system("/mnt/grl/brc/application/qiime_pipeline_jiang/pipeline_454denoising/sffinfo " + self.input + " > " + self.output + "/sffinfo_output/sffinfo.sff.txt")
-      os.system("/mnt/software/454/apps/amplicons/bin/sffinfo -s " + self.input + " > " + self.output + "/sffinfo_output/sffinfo.fasta")
-      os.system("/mnt/software/454/apps/amplicons/bin/sffinfo -q " + self.input + " > " + self.output + "/sffinfo_output/sffinfo.qual")
+  def run_commands(self):
+
+      print "Processing .sff files..."
+      os.system("process_sff.py -f -i " + self.input + " -o " + self.output + "/process_sff_output") 
+
       print "Checking map file..." 
       os.system("check_id_map.py -b -m " + self.map + " -o " + self.output +"/map_output/")
-      print "Running split_libraries..." 
-      os.system("split_libraries.py -b 0 -z truncate_only -f - w 50 -g" + self.output + "/sffinfo_output/sffinfo.fasta" + " -q " + self.output + "/sffinfo_output/sffinfo.qual" + " -m " + self.map + " -o " + self.output + "/split_lib_output/" + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score))      
-      print "Running denoise_wrapper..." 
-      os.system("denoise_wrapper.py -v -i " + self.output + "/sffinfo_output/sffinfo.sff.txt -f " + self.output + "/split_lib_output/seqs.fna -m " + self.map + " -o " + self.output + "/denoise_wrapper_output/" + " -n " + str(self.num_cpus))
-      print "Running inflate_denoiser..." 
-      os.system("inflate_denoiser_output.py -c " + self.output + "/denoise_wrapper_output/centroids.fasta -s " + self.output + "/denoise_wrapper_output/singletons.fasta -f " + self.output + "/split_lib_output/seqs.fna -d " + self.output + "/denoise_wrapper_output/denoiser_mapping.txt -o " + self.output + "/inflate_denoiser_output/denoised.fna")
-      print "Data denoising is finished."
-    except Exception as e:
-      print e
-      sys.exit(1)
 
-  def main(self):
-    try:
-      self.get_params()
-    except Exception as e:
-      print e
-      self.print_help()
-      print "\n\n"
-      print e
-      sys.exit()
-    if(not self.help):
-      self.run_pipeline()
+      print "Running split_libraries..." 
+      os.system("split_libraries.py -o " + self.output + "/split_libraries_output -f " + self.output + "/process_sff_output/V1_V2pool1.fna -q " + self.output + "/process_sff_output/V1_V2pool1.qual -m " + self.map + " -b 0 -l 200 -L 400 -w 50 -g -z truncate_only")      
+
+      print "Running denoise_wrapper..." 
+      os.system("denoise_wrapper.py -v -i " + self.output + "/process_sff_output/V1_V2pool1.txt -f " + self.output + "/split_libraries_output/seqs.fna -o " + self.output + "/denoise_wrapper_output -m " + self.map)
+
+      print "Running inflate_denoiser..." 
+      os.system("inflate_denoiser_output.py -c " + self.output + "/denoise_wrapper_output/centroids.fasta -s " + self.output + "/denoise_wrapper_output/singletons.fasta -f " + self.output + "/split_libraries_output/seqs.fna -d " + self.output + "/denoise_wrapper_output/denoiser_mapping.txt -o " + self.output + "/inflate_denoisted.fna")
+
+      print "Data denoising is finished."
 
   def __init__(self):
     self.main()

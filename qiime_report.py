@@ -123,12 +123,6 @@ class QiimeReport(object):
     print ('Depth of coverage for even sampling is ' + self.min_depth)   
     os.system("beta_diversity_through_plots.py -f -i " + self.output + "/otus/otu_table.biom -m " + self.map + " -o " + self.output + "/bdiv -t " + self.output + "/otus/rep_set.tre -e " + self.min_depth)
 
-    print "run_qiime finished"
-
-
-
-    # generate an HTML summary report for the qiime analysis. 
-    #def generate_report():
 
   def print_help(self):
     print '''
@@ -146,8 +140,7 @@ class QiimeReport(object):
     If this is your first time using the pipeline, please read the manual. It will save you an incredible amount of headache
     trying to format the map file. 
     '''
-
-  # Generate the HTML report from the pipeline. 
+ 
   def generate_report(self):
     outputDir= os.path.abspath(self.output)
     PIName = "PI Name"
@@ -155,7 +148,7 @@ class QiimeReport(object):
 
     print "Generating report..."
     os.system("mkdir -p "+outputDir+"/report_files/")
-    os.system("cp /mnt/software/qiime/qiime_pipeline_files/Workflow.png " + outputDir + "/report_files/Workflow.png")
+    os.system("cp /mnt/grl/brc/application/qiime_pipeline_jiang/Workflow.png " + outputDir + "/report_files/Workflow.png")
     f=open(outputDir+"/report.html","w")
     f.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n")
     f.write("<html>\n")
@@ -166,11 +159,11 @@ class QiimeReport(object):
     f.write("body, th, td, p { font-family: helvetica, sans-serif; font-size: small }\n")
     f.write("h1 { font-size: medium; text-align: center }\n")
     f.write("h2, h3 { font-size: small; text-align: left }\n")
-    f.write("table {}\n") # I could change this to get rid of the table border. make two types of table, one with a border and the default
-    # without. then add tags to all the tables I use so that they have the borders and then the qiime tables will follow the default table behavior. 
+    f.write("table {}\n") 
+     
     f.write(".brc { border: 1px solid black; border-collapse: collapse; margin: 10px 10px 15px 0; width: 820px }")
 
-    #f.write("table tr:nth-child(even) td { background-color: #eeeeee }\n")# uncommenting this fixes it.
+
     f.write("th { text-align: left; color: white; background-color: #aa3333; padding: 3px 15px 3px 3px; border-bottom: 1px solid black; width: 150px }\n")
     f.write("td { padding: 3px 3px 3px 4px; border-bottom: 1px solid gray  }\n")
     f.write(".ntitle { color: black; font-family:Arial,Verdana; font-size:11; font-weight:bold;}")
@@ -179,10 +172,7 @@ class QiimeReport(object):
     f.write(".center { text-align: center }\n")
     f.write(".boldcentered { text-align: center; font-weight: bold }\n")
     f.write("</style>\n")
-    #f.write("<link rel=\"stylesheet\" href=\"./css/qiime_style.css\" type=\"text/css\">")
-
-
-
+    
 
     f.write("</head>\n")
     f.write("<body>\n")
@@ -239,14 +229,7 @@ class QiimeReport(object):
     f.write('<td class=center><img src="report_files/Workflow.png" alt="Workflow Chart"></td></tr>\n')
     f.write('</table>\n')
     f.write('<hr>\n')
-    # The taxonomy summary
-    # How about I put a table of all the stuff in the excell sheet and include the pictures. Basically just replicate the html page that the pipeline creates. 
-    # I could just link to it but it would look much worse, let's see how much work it'd be to copy over the stuff from the html that qiime generates. 
-    # okay. I think I can just hard code the header and scripts from the qiime output then just grab everything after the line containing "otu_table_L5.txt"
 
-    # how do I make this happen? 
-    # I'll have to use a filereader and iterate though line by line until I find the string I'm looking for
-    # or there might be a find method that returns line numbers. 
 
     path = ('./otus/taxa_summary/taxa_summary_plots/bar_charts.html')
     f.write("<div class=\"left\"><strong><a id=taxa_summary name=taxa_summary>Taxa Summary</a></strong></div>")
@@ -337,21 +320,21 @@ def parse_map(map):
   # Find the indexes of all metadata that doesn't have a definite location. 
   fprimer_index = 2 
   rprimer_index = -1
-  group_index = -1
+  groupID_index = -1
   filename_index = -1
   sampleID_index = 0 
   barcode_index = 1 
   description_index = -1
   other_indexes = []
   sample_list =[] 
-  Sample = collections.namedtuple('Sample', ['fprimer', 'rprimer', 'group', 'filename', 'sampleID', 'barcode', 'description', 'other'])
+  Sample = collections.namedtuple('Sample', ['fprimer', 'rprimer', 'groupID', 'filename', 'sampleID', 'barcode', 'description', 'other'])
   with open(map, "rb") as csvfile:
     reader = csv.reader(csvfile, delimiter='\t')
     first_line = reader.next()
     # read header line and figure out the indexes of the metadata
     for i in range(len(first_line)):
-      if first_line[i].lower() == "groupid":
-        group_index = i 
+      if first_line[i].lower() == "groupID":
+        groupID_index = i 
       elif first_line[i].lower() == "reverseprimer":
         rprimer_index = i 
       elif first_line[i].lower() == "filename":
@@ -365,7 +348,7 @@ def parse_map(map):
     # go through the rows of the map and generate Sample objects for each sample
     for row in reader:
       if row[0][0] != '#':
-        sample_data = Sample(fprimer = row[fprimer_index], rprimer = row[rprimer_index], group = row[group_index], filename = row[filename_index],
+        sample_data = Sample(fprimer = row[fprimer_index], rprimer = row[rprimer_index], groupID = row[groupID_index], filename = row[filename_index],
           sampleID = row[sampleID_index], barcode = row[barcode_index], description = row[description_index], other = []) 
         for i in other_indexes:
           sample_data = sample_data._replace(other= sample_data.other + [row[i]])

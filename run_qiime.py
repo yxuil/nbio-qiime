@@ -5,6 +5,7 @@ import getopt
 import sys
 import csv
 import collections
+import math
 class QiimePipeline(object):
   fna = None
   cores = None
@@ -61,11 +62,17 @@ class QiimePipeline(object):
 
 
   def run_commands(self):
+
+    # Check Mapping file
+    print "checking the mapping file"
+    os.system("check_id_map.py -m " + self.map)
+    
+
     # Generate OTUs
     print "Picking OTUs. This will take a long time."
     if(self.ref is None):
-      #print ("pick_de_novo_otus.py -i " + self.fna + " -o " + self.out + "/otus -f -a -O " + str(self.cores) + ' -p pick_otu_params.txt')
-      os.system("pick_de_novo_otus.py -i " + self.fna + " -o " + self.out + "/otus -f -a -O " + str(self.cores))# + ' -p pick_otu_params.txt')
+      print ("pick_de_novo_otus.py -i " + self.fna + " -o " + self.out + "/otus -f -a -O " + str(self.cores) + ' -p pick_otu_params.txt')
+      os.system("pick_de_novo_otus.py -i " + self.fna + " -o " + self.out + "/otus -f -a -O " + str(self.cores))# + ' -p qiime_pipeline_files/pick_otu_params.txt')
     else:
       os.system("pick_open_reference_otus.py -i " + self.fna + " -o " + self.out + "/otus -r " + self.ref + " -f -a -O " + str(self.cores))
 
@@ -110,8 +117,12 @@ class QiimePipeline(object):
     print "finished generating rarefaction curves"
 
     # create beta diversity plots
-    print "Creating beta diversity plots"   
-    os.system("beta_diversity_through_plots.py -f -i " + self.out + "/otus/otu_table.biom -m " + self.map + " -o " + self.out + "/bdiv -t " + self.out + "/otus/rep_set.tre -e 18000")
+    print "Creating beta diversity plots"
+    for item in open (self.out + "/otus/library_stats.txt"):
+      if "Min" in item:
+        self.min_depth =str(int(float(item.strip()[5:])))
+    print self.min_depth   
+    os.system("beta_diversity_through_plots.py -f -i " + self.out + "/otus/otu_table.biom -m " + self.map + " -o " + self.out + "/bdiv -t " + self.out + "/otus/rep_set.tre -e " + self.min_depth)
     print "Finished creating beta diversity plots"
 
 

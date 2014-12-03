@@ -26,22 +26,29 @@ class DenoisePipeline(object):
 
       self.get_params()
       
-      # The while loop is to denoise .sff files in the input directory one by one.
-      from os import walk
-      for (dirpath, dirnames, sfflist) in walk(self.input):
-        print 'The following sff files will be denoised:'
-        print sfflist
-      sffnumber = 0
-      while sffnumber < len(sfflist):
-        self.sffname = sfflist[sffnumber]
+      # The while loop is to denoise the .sff files specified in the map file one by one.     
+      
+      f1 = open(self.map)
+      lines=f1.readlines()
+      n=2
+      while n < len(lines):
+        self.sffname = lines[n].split('\t')[4]
         self.sffid = self.sffname.split('.')[0]
-        print ("Denoising " + self.sffname)
-        self.get_singlemap()
+        print ('The following sff file is being denoised: ' + self.sffname)
+        print "  Getting metadata from the mapping file..."
+        self.singlemap = self.sffid + '_map.txt'
+        f2 = open (self.output + "/" + self.singlemap, 'w')
+        f2.write(lines[0])
+        f2.write(lines[n])    
+        f2.close()
         self.run_denoise()
-        sffnumber = sffnumber + 1
+        n+=1
+      f1.close()
+      print "Data denoising is finished."
+
       print "Combining denoised.fna files..."
       os.system("cat " + self.output + "/*denoisted.fna > " + self.output + "/combined.fna")
-      print "Data denoising is finished."
+      
       
     except Exception as e:
       print e
@@ -102,22 +109,6 @@ class DenoisePipeline(object):
     if self.help is False and (self.input is None or self.output is None or self.map is None):
       raise Exception("A required parameter is missing.")
 
-    
-  def get_singlemap(self):
-    f1 = open (self.map)
-    self.singlemap = self.sffid + '_map.txt'
-    f2 = open (self.output + "/" + self.singlemap, 'w')
-    lines = f1.readlines()
-    f2.write(lines[0])
-    n=1
-    while n < len(lines):
-      if self.sffname in lines[n].split('\t'):
-        f2.write(lines[n])
-        break
-      else:
-        n+=1      
-    f1.close()
-    f2.close()
 
 
  
