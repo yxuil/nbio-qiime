@@ -198,7 +198,7 @@ class DenoisePipeline(object):
     trim_log = self.output + "/" + self.sampleid + "/trimmed_seqs/cutadapt_log"
     (open(trim_log, 'w')).close()
     os.system("cutadapt -a " +  self.fprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna " + self.output + "/" + self.sampleid + "/slout/seqs.fna > " + trim_log)
-    os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/rtrimmed.fna " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna >> " + trim_log)
+    os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fna " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna >> " + trim_log)
 
     self.remove_chimeras()
 
@@ -230,7 +230,7 @@ class DenoisePipeline(object):
     log = self.output + "/" + self.sampleid + "/trimmed_seqs/cutadapt_log"
     (open(log, 'w')).close()
     os.system("cutadapt -a " +  self.fprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna " + self.output + "/" + self.sampleid + "/denoiser.fna > " + log)
-    os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/rtrimmed.fna " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna >> " + log)
+    os.system("cutadapt -a " +  self.rprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fna " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna >> " + log)
     
     self.remove_chimeras()
 
@@ -247,34 +247,32 @@ class DenoisePipeline(object):
     (open(flash_log, 'w')).close()
     os.system ("/home/BIOTECH/jiang/FLASH-1.2.7/flash " + self.input + "/" + self.filename + " " + self.input + "/" + self.pairdreads + " -d " + self.output + "/" + self.sampleid + "/merged_fastq/ -o flash -m " + str(self.min_overlap) + " -M " + str(self.max_overlap) + " > " + flash_log)
 
+
+    SeqIO.convert(self.output + "/" + self.sampleid + "/merged_fastq/flash.extendedFrags.fastq", "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs.qual", "qual")
+    SeqIO.convert(self.output + "/" + self.sampleid + "/merged_fastq/flash.extendedFrags.fastq", "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs.fasta", "fasta")
+
+    print "  Running split_libraries..." 
+    split_lib_command = "split_libraries.py -b 0 -p -g -o " + self.output + "/" + self.sampleid + "/slout -f " + self.output + "/" + self.sampleid + "/converted_seqs/seqs.fasta -q " + self.output + "/" + self.sampleid + "/converted_seqs/seqs.qual -m " + self.output + "/split_maps/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
+    os.system(split_lib_command)
+
     print "  Trimming primer sequences..."
     if not os.path.exists(self.output + "/" + self.sampleid + "/trimmed_seqs/"):
       os.makedirs(self.output + "/" + self.sampleid + "/trimmed_seqs/")
     log = self.output + "/" + self.sampleid + "/trimmed_seqs/cutadapt_log"
     (open(log, 'w')).close()
-    os.system("cutadapt -b " +  self.fprimer + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fastq " + self.output + "/" + self.sampleid + "/merged_fastq/flash.extendedFrags.fastq > " + log)
-    os.system("cutadapt -b " +  self.rprimer + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fastq " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fastq >> " + log)
-
-    SeqIO.convert(self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fastq", "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs.qual", "qual")
-    SeqIO.convert(self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fastq", "fastq", self.output + "/" + self.sampleid + "/converted_seqs/seqs.fasta", "fasta")
-
-    print "  Running split_libraries..." 
-    split_lib_command = "split_libraries.py -b 0 -p -g -o " + self.output + "/" + self.sampleid + "/slout -f " + self.output + "/" + self.sampleid + "/converted_seqs/seqs.fasta -q " + self.output + "/" + self.sampleid + "/converted_seqs/seqs.qual -m " + self.output + "/split_maps/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
-    os.system(split_lib_command)
+    os.system("cutadapt -O 6 -m " + str(self.min_seq_length) + " -b " +  self.fprimer + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna " + self.output + "/" + self.sampleid + "/slout/seqs.fna > " + log)
+    os.system("cutadapt -O 6 -m " + str(self.min_seq_length) + " -b " +  self.rprimer + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/rtrimmed.fna " + self.output + "/" + self.sampleid + "/trimmed_seqs/ftrimmed.fna >> " + log)
+    os.system("cutadapt -O 6 -m " + str(self.min_seq_length) + " -a " +  self.fprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/frctrimmed.fna " + self.output + "/" + self.sampleid + "/trimmed_seqs/rtrimmed.fna >> " + log)
+    os.system("cutadapt -O 6 -m " + str(self.min_seq_length) + " -a " +  self.rprimer_rc + " -o " + self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fna " + self.output + "/" + self.sampleid + "/trimmed_seqs/frctrimmed.fna >> " + log)
     
-    print "  Removing chimeras..."
-    if not os.path.exists(self.output + "/preprocessed_fna/"):
-      os.makedirs(self.output + "/preprocessed_fna/")
-    os.system("identify_chimeric_seqs.py -i " + self.output + "/" + self.sampleid + "/slout/seqs.fna -m usearch61 -o " + self.output + "/" + self.sampleid + "/chimeras/ --suppress_usearch61_ref")
-    os.system("filter_fasta.py -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -o " + self.output + "/preprocessed_fna/" + self.sampleid + "_chimeras_filtered.fna -s " + self.output + "/" + self.sampleid + "/chimeras/chimeras.txt -n")
-
+    self.remove_chimeras()
 
 
   def remove_chimeras(self):
     print "  Removing chimeras..."
     if not os.path.exists(self.output + "/preprocessed_fna/"):
       os.makedirs(self.output + "/preprocessed_fna/")
-    os.system("identify_chimeric_seqs.py -i " + self.output + "/" + self.sampleid + "/trimmed_seqs/rtrimmed.fna -m usearch61 -o " + self.output + "/" + self.sampleid + "/chimeras/ --suppress_usearch61_ref")
+    os.system("identify_chimeric_seqs.py -i " + self.output + "/" + self.sampleid + "/trimmed_seqs/trimmed.fna -m usearch61 -o " + self.output + "/" + self.sampleid + "/chimeras/ --suppress_usearch61_ref")
     os.system("filter_fasta.py -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -o " + self.output + "/preprocessed_fna/" + self.sampleid + "_chimeras_filtered.fna -s " + self.output + "/" + self.sampleid + "/chimeras/chimeras.txt -n")
 
 
