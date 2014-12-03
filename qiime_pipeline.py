@@ -32,7 +32,7 @@ class DenoisePipeline(object):
       print ("split_libraries parameters: -b 0 -z truncate_only -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window) + " -g")
       self.preprocess()
       print "The preprocessed.fna files are combined"
-      os.system("cat " + self.output + "/*preprocessed.fna > " + self.output + "/combined_preprocessed.fna")
+      os.system("cat " + self.output + "/preprocessed_fna/*preprocessed.fna > " + self.output + "/preprocessed_fna/combined.fna")
       self.run_QiimeReport()
       
     except Exception as e:
@@ -109,6 +109,8 @@ class DenoisePipeline(object):
       self.sampleid = lines[n].split('\t')[0]
       self.fprimer = lines[n].split('\t')[2]
       self.rprimer = lines[n].split('\t')[6]
+      self.fprimer_rc = lines[n].split('\t')[7]
+      self.rprimer_rc = lines[n].split('\t')[8]
         
       #split mapping file
       if not os.path.exists(self.output + "/split_maps/"):
@@ -160,9 +162,14 @@ class DenoisePipeline(object):
     print "  Running split_libraries..." 
     split_lib_command = "split_libraries.py -b 0 -z truncate_only -g -o " + self.output + "/" + self.sampleid + "/slout -f " + self.output + "/" + self.sampleid + "/converted.fasta -q " + self.output + "/" + self.sampleid + "/converted.qual -m " + self.output + "/split_maps/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
     os.system(split_lib_command)
-    os.system ("cp " + self.output + "/" + self.sampleid + "/slout/seqs.fna " + self.output + "/" + self.sampleid + "_preprocessed.fna")
 
-
+    print "  Trimming reverse compliment sequences of the primers..."
+    if not os.path.exists(self.output + "/preprocessed_fna/"):
+      os.makedirs(self.output + "/preprocessed_fna/")
+    os.system("cutadapt -a " +  self.fprimer_rc + " " + self.output + "/" + self.sampleid + "/slout/seqs.fna  > " + self.output + "/" + self.sampleid + "_trimmed.fna")
+    os.system("cutadapt -a " +  self.rprimer_rc + " " + self.output + "/" + self.sampleid + "_trimmed.fna > " + self.output + "/preprocessed_fna/" + self.sampleid + "_preprocessed.fna")
+    os.system("rm " + self.output + "/" + self.sampleid + "_trimmed.fna")
+   
 
   def denoise_sff(self):
       
@@ -171,18 +178,25 @@ class DenoisePipeline(object):
 
       print "  Running split_libraries..." 
       split_lib_command = "split_libraries.py -b 0 -z truncate_only -g -o " + self.output + "/" + self.sampleid + "/slout -f " + self.output + "/" + self.sampleid + "/sffout/" + self.fileid + ".fna -q " + self.output + "/" + self.sampleid + "/sffout/" + self.fileid + ".qual -m " + self.output + "/split_maps/" + self.singlemap + " -l " + str(self.min_seq_length) + " -L " + str(self.max_seq_length) + " -s " + str(self.min_qual_score) + " -w " + str(self.qual_score_window)
-      os.system(split_lib_command) 
+      os.system(split_lib_command)
 
       print "  Running denoise_wrapper..."
       denoise_wrapper_command = "denoise_wrapper.py -v -i " + self.output + "/" + self.sampleid + "/sffout/" + self.fileid + ".txt -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -o " + self.output + "/" + self.sampleid + "/dwout/ -m " + self.output + "/split_maps/" + self.singlemap + " --force_overwrite"
       os.system(denoise_wrapper_command)
 
       print "  Running inflate_denoiser..."
-      inflate_denoiser_command = "inflate_denoiser_output.py -c " + self.output + "/" + self.sampleid + "/dwout/centroids.fasta -s " + self.output + "/" + self.sampleid + "/dwout/singletons.fasta -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -d " + self.output + "/" + self.sampleid + "/dwout/denoiser_mapping.txt -o " + self.output + '/' + self.sampleid + "_preprocessed.fna"
+      inflate_denoiser_command = "inflate_denoiser_output.py -c " + self.output + "/" + self.sampleid + "/dwout/centroids.fasta -s " + self.output + "/" + self.sampleid + "/dwout/singletons.fasta -f " + self.output + "/" + self.sampleid + "/slout/seqs.fna -d " + self.output + "/" + self.sampleid + "/dwout/denoiser_mapping.txt -o " + self.output + '/' + self.sampleid + "/inflate_denoiser_output.fna"
       os.system(inflate_denoiser_command)
 
+      print "  Trimming reverse compliment sequences of the primers..."
+      if not os.path.exists(self.output + "/preprocessed_fna/"):
+        os.makedirs(self.output + "/preprocessed_fna/")
+      os.system("cutadapt -a " +  self.fprimer_rc + " " + self.output + '/' + self.sampleid + "/inflate_denoiser_output.fna > " + self.output + "/" + self.sampleid + "_trimmed.fna")
+      os.system("cutadapt -a " +  self.rprimer_rc + " " + self.output + "/" + self.sampleid + "_trimmed.fna > " + self.output + "/preprocessed_fna/" + self.sampleid + "_preprocessed.fna")
+      os.system("rm " + self.output + "/" + self.sampleid + "_trimmed.fna")
+
   def run_QiimeReport(self):
-    run_QiimeReport_command = "python " + os.path.join(script_path, "qiime_report_j2.py") + " -i " + self.output + "/combined_preprocessed.fna -o " + self.output + " -m " + self.map + " -n " + str(self.num_cpus)
+    run_QiimeReport_command = "python " + os.path.join(script_path, "qiime_report_j2.py") + " -i " + self.output + "/preprocessed_fna/combined.fna -o " + self.output + " -m " + self.map + " -n " + str(self.num_cpus)
     os.system(run_QiimeReport_command)
          
        

@@ -19,7 +19,6 @@ class QiimeReport(object):
   num_cpus = 2
   reference = None
   help = False
-  sort = 'SampleID'
 
   def main(self):
     try:
@@ -39,8 +38,8 @@ class QiimeReport(object):
 
 
   def get_params(self):
-    letters = 'i:,o:,m:,n:,r:,s:,h'
-    keywords = ['input-dir=', 'output-dir=', 'map=', 'num_cpus=', 'reference=', 'sort=', 'help']
+    letters = 'i:,o:,m:,n:,r:,h'
+    keywords = ['input-dir=', 'output-dir=', 'map=', 'num_cpus=', 'reference=', 'help']
     opts, extraparams = getopt.getopt(sys.argv[1:], letters, keywords)
     for o,p in opts:
       if o in ['-i', '--input-dir']:
@@ -64,8 +63,6 @@ class QiimeReport(object):
 	if not os.path.exists(os.path.abspath(p)):
 	  raise Exception("Reference file does not exist.")
 	self.reference = os.path.abspath(p)
-      elif o in ['-s', '--sort']:
-	self.sort = p
       elif o in ['-h', '--help']:
 	self.print_help()
 	self.help = True
@@ -87,34 +84,24 @@ class QiimeReport(object):
     else:
       print ('Open-reference OTU picking...') 
       os.system("pick_open_reference_otus.py -i " + self.input + " -o " + self.output + "/otus -r " + self.reference + " -f -a -O " + str(self.num_cpus))
+      os.system("cp " + self.output + "/otus/otu_table_mc2_w_tax_no_pynast_failures.biom " + self.output + "/otus/otu_table.biom")
 
     print "Creating biom_table_summary..."
     os.system("print_biom_table_summary.py -i " + self.output + "/otus/otu_table.biom > " + self.output + "/otus/biom_summary.txt")
 
-    print ("Sorting OTU table by " + self.sort + " ...")
-    os.system("sort_otu_table.py -i " + self.output + "/otus/otu_table.biom -m " + self.map + " -o " + self.output +"/otus/otu_table.biom -s " + self.sort)
 
     print "Making OTU heatmap..."
-    os.system("make_otu_heatmap_html.py -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/heatmap")
+    os.system("make_otu_heatmap_html.py -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/heatmap -n 1")
 
     print "Creating OTU network..."
     os.system("make_otu_network.py -m " + self.map + " -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/network")
 
     print "Creating taxa summary plots..."
     os.system("summarize_taxa_through_plots.py -f -i " + self.output + "/otus/otu_table.biom -o " + self.output + "/otus/taxa_summary -m " + self.map)
-    
-
-    print "Creating alpha parameters..."
-    if(not os.path.exists(self.output + "/arare/")):
-      os.makedirs(self.output + "/arare/")
-    f = open(self.output + "/arare/alpha_params.txt", 'w')
-    f.write('')
-    f.close()
-    os.system("echo \"alpha_diversity:metrics shannon,PD_whole_tree,chao1,observed_species\" > " + self.output + "/arare/alpha_params.txt")
-    
+ 
     print "Creating rarefation plots..."
     os.system("alpha_rarefaction.py -f -i " + self.output + "/otus/otu_table.biom -m " + self.map + " -o " + self.output +
-      "/arare/ -p " + self.output + "/arare/alpha_params.txt -t " + self.output + "/otus/rep_set.tre -a -O " +str(self.num_cpus))
+      "/arare/ -p /mnt/grl/brc/application/qiime_pipeline_jiang/alpha_params.txt -t " + self.output + "/otus/rep_set.tre -a -O " +str(self.num_cpus))
 
     print "Creating beta diversity plots..."
     for item in open (self.output + "/otus/biom_summary.txt"):
@@ -126,19 +113,16 @@ class QiimeReport(object):
 
   def print_help(self):
     print '''
-    qiime_pipeline.py runs the qiime pipeline for 16S rRNA metagenomic analysis on given input data. 
-    Parameters:
-    (-i, --input-dir) The input .fna file to be analyzed. The .fna should be demultiplexed, denoised and filtered by quality score.
-    (-o, --output-dir) The directory where you want the output data and report to be located.
-    (-m, --map) The tab-delimited qiime mapping file that contains metadata for the samples. Please read the manual for specifications on this file
-      The manual is located in ???
-    (-n, --num_cpus) Optional. The number of num_cpus to use for the parallel portions of this pipeline. Default is 2. 
-    (-r, --reference) Optional. A reference database (such as greengenes) for OTU clustering. If none is specified, de novo clustering will be used.
-    (-s, --sort) Optional. The metadata parameter by which to sort the samples for output. Defaults to sampleID. 
-    (-h, --help) Display this help dialogue and exit. 
-    
-    If this is your first time using the pipeline, please read the manual. It will save you an incredible amount of headache
-    trying to format the map file. 
+    qiime_report_jiang.py is a part of the qiime pipeline for 16S rRNA metagenomic analysis. It can also run by itself, but the input data has to be in FASTA format. 
+    (-i, --input-dir) The input directory containing all the data you want to analyzed. 
+    (-o, --output-dir) The output directory where you want the results to be located.
+    (-m, --map) The tab-delimited qiime mapping file that contains metadata for the samples to be analyzed. The BarcodeSequence column should be empty.
+    Optional Parameters:
+    (-r, --reference) Reference database for OTU clustering. It should be in fasta format. If a reference is given, pick_open_reference_otus.py runs. If not, pick_de_novo_otus.py runs.
+    (-n, --num_cpus) The number of cores to use for the parallel portions of the pipeline. [default: 2].
+    Other options: 
+    (-h, --help) Display this help dialogue and exit.
+    For complete information about this pipeline, please refer to the manual located in /mnt/grl/brc/application/qiime_pipeline_jiang/pipeline_manual.txt. 
     '''
  
   def generate_report(self):
@@ -320,21 +304,21 @@ def parse_map(map):
   # Find the indexes of all metadata that doesn't have a definite location. 
   fprimer_index = 2 
   rprimer_index = -1
-  groupID_index = -1
+  treatment_index = -1
   filename_index = -1
   sampleID_index = 0 
   barcode_index = 1 
   description_index = -1
   other_indexes = []
   sample_list =[] 
-  Sample = collections.namedtuple('Sample', ['fprimer', 'rprimer', 'groupID', 'filename', 'sampleID', 'barcode', 'description', 'other'])
+  Sample = collections.namedtuple('Sample', ['fprimer', 'rprimer', 'treatment', 'filename', 'sampleID', 'barcode', 'description', 'other'])
   with open(map, "rb") as csvfile:
     reader = csv.reader(csvfile, delimiter='\t')
     first_line = reader.next()
     # read header line and figure out the indexes of the metadata
     for i in range(len(first_line)):
-      if first_line[i].lower() == "groupID":
-        groupID_index = i 
+      if first_line[i].lower() == "treatment":
+        treatment_index = i 
       elif first_line[i].lower() == "reverseprimer":
         rprimer_index = i 
       elif first_line[i].lower() == "filename":
@@ -348,7 +332,7 @@ def parse_map(map):
     # go through the rows of the map and generate Sample objects for each sample
     for row in reader:
       if row[0][0] != '#':
-        sample_data = Sample(fprimer = row[fprimer_index], rprimer = row[rprimer_index], groupID = row[groupID_index], filename = row[filename_index],
+        sample_data = Sample(fprimer = row[fprimer_index], rprimer = row[rprimer_index], treatment = row[treatment_index], filename = row[filename_index],
           sampleID = row[sampleID_index], barcode = row[barcode_index], description = row[description_index], other = []) 
         for i in other_indexes:
           sample_data = sample_data._replace(other= sample_data.other + [row[i]])

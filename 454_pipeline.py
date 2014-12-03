@@ -1,12 +1,13 @@
+#!/mnt/software/epd/bin/ipython
+
 import os
 import getopt
 import sys
 import time
 import glob
 import math
-from os import walk
 
-script_path = os.path.dirname(os.path.realpath(__file__)) #'/mnt/grl/brc/application/qiime_pipeline_jiang/pipeline_454denoising/'
+script_path = os.path.dirname(os.path.realpath(__file__)) #'/mnt/grl/brc/application/qiime_pipeline_jiang/'
 sys.path.append(script_path)
 
 class DenoisePipeline(object):
@@ -27,18 +28,17 @@ class DenoisePipeline(object):
       self.get_params()
       
       # The while loop is to denoise the .sff files specified in the map file one by one.     
-      
       f1 = open(self.map)
       lines=f1.readlines()
-      n=2
+      n=2                                       #Samples start on 3rd line
       while n < len(lines):
-        self.sffname = lines[n].split('\t')[4]
+        self.sffname = lines[n].split('\t')[4]  #Filename is 5th column.
         self.sffid = self.sffname.split('.')[0]
         print ('The following sff file is being denoised: ' + self.sffname)
         print "  Getting metadata from the mapping file..."
         self.singlemap = self.sffid + '_map.txt'
         f2 = open (self.output + "/" + self.singlemap, 'w')
-        f2.write(lines[0])
+        f2.write(lines[0])                       #Header is on 1st line
         f2.write(lines[n])    
         f2.close()
         self.run_denoise()
@@ -47,7 +47,10 @@ class DenoisePipeline(object):
       print "Data denoising is finished."
 
       print "Combining denoised.fna files..."
-      os.system("cat " + self.output + "/*denoisted.fna > " + self.output + "/combined.fna")
+      os.system("cat " + self.output + "/*denoisted.fna > " + self.output + "/combined_denoised.fna")
+      
+      print "Running qiime_report..."
+      self.run_QiimeReport()
       
       
     except Exception as e:
@@ -131,6 +134,11 @@ class DenoisePipeline(object):
       inflate_denoiser_command = "inflate_denoiser_output.py -c " + self.output + "/" + self.sffid + "_denoise_wrapper_output/centroids.fasta -s " + self.output + "/" + self.sffid + "_denoise_wrapper_output/singletons.fasta -f " + self.output + "/" + self.sffid + "_split_libraries_output/seqs.fna -d " + self.output + "/" + self.sffid + "_denoise_wrapper_output/denoiser_mapping.txt -o " + self.output + "/" + self.sffid + "_denoisted.fna"
       print inflate_denoiser_command
       os.system(inflate_denoiser_command)
+
+  def run_QiimeReport(self):
+    run_QiimeReport_command = "python " + os.path.join(script_path, "qiime_report_j1.py") + " -i " + self.output + "/combined_denoised.fna -o " + self.output + " -m " + self.map + " -n " + str(self.num_cpus)
+    print run_QiimeReport_command
+    os.system(run_QiimeReport_command)
          
        
 

@@ -51,6 +51,7 @@ class DenoisePipeline(object):
       elif o in ['-h', '--help']:
         self.print_help()
         self.help = True
+        sys.exit()
       else:
         self.print_help()
         self.help = True
@@ -62,20 +63,23 @@ class DenoisePipeline(object):
      
   def run_commands(self):
 
+      sffname = self.input.split("/")[-1]
+      print sffname.split(".")[0]
       print "Processing .sff files..."
-      os.system("process_sff.py -f -i " + self.input + " -o " + self.output + "/process_sff_output") 
+      os.system("process_sff.py -f -i " + self.input + " -o " + self.output + "/process_sff_output")
+       
 
       print "Checking map file..." 
       os.system("check_id_map.py -b -m " + self.map + " -o " + self.output +"/map_output/")
 
       print "Running split_libraries..." 
-      os.system("split_libraries.py -o " + self.output + "/split_libraries_output -f " + self.output + "/process_sff_output/V1_V2pool1.fna -q " + self.output + "/process_sff_output/V1_V2pool1.qual -m " + self.map + " -b 0 -l 200 -L 400 -w 50 -g -z truncate_only")      
+      os.system("split_libraries.py -o " + self.output + "/split_libraries_output -f " + self.output + "/process_sff_output/" + sffname.split(".")[0] + ".fna -q " + self.output + "/process_sff_output/" + sffname.split(".")[0] + ".qual -m " + self.map + " -b 0 -l 200 -L 400 -w 50 -g -z truncate_only")      
 
       print "Running denoise_wrapper..." 
       os.system("denoise_wrapper.py -v -i " + self.output + "/process_sff_output/V1_V2pool1.txt -f " + self.output + "/split_libraries_output/seqs.fna -o " + self.output + "/denoise_wrapper_output -m " + self.map)
 
       print "Running inflate_denoiser..." 
-      os.system("inflate_denoiser_output.py -c " + self.output + "/denoise_wrapper_output/centroids.fasta -s " + self.output + "/denoise_wrapper_output/singletons.fasta -f " + self.output + "/split_libraries_output/seqs.fna -d " + self.output + "/denoise_wrapper_output/denoiser_mapping.txt -o " + self.output + "/inflate_denoisted.fna")
+      os.system("inflate_denoiser_output.py -c " + self.output + "/denoise_wrapper_output/centroids.fasta -s " + self.output + "/denoise_wrapper_output/singletons.fasta -f " + self.output + "/split_libraries_output/seqs.fna -d " + self.output + "/denoise_wrapper_output/denoiser_mapping.txt -o " + self.output + "/" + sffname.split(".")[0] + "_denoisted.fna")
 
       print "Data denoising is finished."
 
@@ -86,19 +90,13 @@ class DenoisePipeline(object):
 
   def print_help(self):
     print '''
-    qiime_pipeline.py runs the qiime pipeline for 16S rRNA metagenomic analysis on given input data. 
+    denoise_pipeline.py runs the qiime pipeline for 16S rRNA metagenomic analysis to denoise demultiplexed 454 data. It takes a single .sff flie and outputs a denoised .fna file.
     Parameters:
-    (-i, --input-dir) Required. The directory containing all the .bam or .fastq files to be analyzed.
-    (-o, --output-dir) Required. The directory where you want the output data and report to be located.
-    (-m, --map) Required. The tab-delimited qiime mapping file that contains metadata for the samples. Please read the manual for specifications on this file.
-    (-q, --quality) Require. The quality threshold for reads. All reads below this quality will be removed before analysis is performed.
-    (-l , --length) Required. the minimum length for reads. All reads shorter than this length will be removed before analysis is performed. 
-    (-c, --cores) Optional. The number of cores to use for the parallel portions of the pipeline. Default is 2.
-    (-r, --reference) Optional. A reference database (such as greengenes) for OTU clustering. If none is specified, de novo clustering will be used.
-    (-s, --sort) Optional. The metadata parameter by which to sort the samples for output. Defaults to sampleID. 
-    (-h, --help) Display this help dialogue and exit. 
-    The complete manual is located in /mnt/software/qiime_andrew/my_script/qiime_pipeline/documentation.
-    If this is your first time using the pipeline, please read the manual. It will save you an incredible amount of effort to format the map file. 
+    (-i, --input-dir) Required. The .sff files to be denoised.
+    (-o, --output-dir) Required. The directory where you want the output data to be located.
+    (-m, --map) Required. The tab-delimited qiime mapping file that contains metadata for the sample. Please read the manual for specifications on this file.
+    (-n, --num_cpus) Optional. The number of cores to use for the parallel portions of the pipeline. Default is 2.
+    (-h, --help) Display this help dialogue and exit.  
     '''
 
 if(__name__ == "__main__"):
