@@ -1,8 +1,0 @@
-#SampleID	BarcodeSequence	LinkerPrimerSequence	Treatment	Filename	PairedReads	ReversePrimer	ForPrimerRC	RevPrimerRC	ReadNumber	Description
-#This is a mapping file for the QIIME analysis of rt203 bacterial gDNA samples.
-V1.pool1		AGAGTTTGATCCTGGCTCAG	control	run432.Speers-V1-V2-Pool-1_CGATGT_L001_R1.fastq.gz	run432.Speers-V1-V2-Pool-1_CGATGT_L001_R2.fastq.gz	GCTGCCTCCCGTAGGAGT	CTGAGCCAGGATCAAACTCT	
-ACTCCTACGGGAGGCAGC	all	gDNA pool1
-V1.pool2		AGAGTTTGATCCTGGCTCAG	high	run432.Speers-V1-V2-Pool-2_TGACCA_L001_R1.fastq.gz	run432.Speers-V1-V2-Pool-2_TGACCA_L001_R2.fastq.gz	GCTGCCTCCCGTAGGAGT	CTGAGCCAGGATCAAACTCT	
-ACTCCTACGGGAGGCAGC	all	gDNA pool2
-V1.pool3		AGAGTTTGATCCTGGCTCAG	low	run432.Speers-V1-V2-Pool-3_ACAGTG_L001_R1.fastq.gz	run432.Speers-V1-V2-Pool-3_ACAGTG_L001_R2.fastq.gz	GCTGCCTCCCGTAGGAGT	CTGAGCCAGGATCAAACTCT	
-ACTCCTACGGGAGGCAGC	all	gDNA pool3

@@ -1,0 +1,116 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en">
+<head>
+    <title>Amplicon Metagenomics Analysis - </title>
+    <style type="text/css">
+        body, th, td, p { font-family: helvetica, sans-serif; font-size: small }
+        h1 { font-size: medium; text-align: center }
+        h2, h3 { font-size: small; text-align: left }
+        table {}
+
+        .brc { border: 1px solid black; border-collapse: collapse; margin: 10px 10px 15px 0; width: 820px }
+
+
+        th { text-align: left; color: white; background-color: #aa3333; padding: 3px 15px 3px 3px; border-bottom: 1px solid black; width: 150px }
+        td { padding: 3px 3px 3px 4px; border-bottom: 1px solid gray  }
+        .ntitle { color: black; font-family:Arial,Verdana; font-size:11; font-weight:bold;}
+        .left { text-align: left }
+        .right { text-align: right }
+        .center { text-align: center }
+        .boldcentered { text-align: center; font-weight: bold }
+        .tableholder {width: 900px; height: 600px; overflow-y: scroll}
+    </style>
+</head>
+<body>
+    <div class="boldcentered">UW Biotechnology Center Bioinformatics Resource Center - {{time}}</div>
+    <div style="margin-top: 10px" class="center">Please direct questions to: <strong>brc@biotech.wisc.edu</strong></div>
+    <hr>
+    <ol>
+    <li><a href='#summary'>Summary</a></li>
+    <li><a href='#workflow'>Workflow</a></li>
+    <li><a href='#taxa_summary'>Taxa Summary</a></li>
+    <li><a href='#arare'>Alpha Rarefaction</a></li>
+    <li><a href='#bdiv'>Beta Diversity</a></li>
+    <li><a href='#phylogeny'>Phylogenetic Tree</a></li>
+    <li><a href='#heatmap'>OTU Heatmap</a></li>
+    <li><a href='#software'>Software</a></li>
+    </ol>
+    <hr>
+
+    <div class="left"><strong><a id=summary name=summary>Summary</a></strong></div>
+    <table class="brc">
+        <tr><th scope='row'>PI Name</th><td colspan="6" style="white-space:pre-wrap">{{PIname}}</td></tr>
+        <tr><th scope='row'>Project Description</th><td colspan="6" style="white-space:pre-wrap">{{description}}</td></tr>
+        <tr><th scope='row'>Samples</th><td colspan="6" style="white-space:pre-wrap">{{sample_names}}</td></tr>
+        <tr>
+            <th>Name</th>
+            <th>Group</th>
+            <th>Reads Number</th>
+            <th>Merged</th>
+            <th>Primer Trimmed Amplicons</th>
+            <th>Quality Filtered Amplicon</th></th>
+            <th>Median Length</th>
+        </tr>
+    {% for sample in samples %}
+        <tr>
+            <td>{{sample.name}}</td>
+            <td>{{sample["group"]}}</td>
+            <td>{{sample["total_reads"]}}</td>
+            <td>{{sample["merged_reads"]}}</td>
+            <td>{{sample["trimmed_resds"]}}</td>
+            <td>{{sample["filtered_reads"]}}</td>
+            <td>{{sample["med_length"]}}</td>
+        </tr>
+    {% endfor %}
+
+        <tr><th scope='row' colspan="2">Reference Database</th><td colspan="5">{{ref}}</td></tr>
+        <tr><th scope='row' colspan="2">Report Generation Date</th><td colspan="5">{{time}}</td></tr>
+
+    </table>
+    <hr>
+    
+    
+    <div class='left'><strong><a id='workflow' name='workflow'>Workflow Chart</a></strong></div>
+        <img src="Workflow.png" alt="[Workflow Chart]">
+
+
+    <div class="left"><strong><a id=taxa_summary name=taxa_summary>Taxa Summary</a></strong></div>
+    <li><a href="{{taxa_url}}">View Full Interactive Taxa Summary</a></li>
+   {{taxa_html}}
+    <hr>
+    
+    <div class="left"><strong><a id=arare name=arare>Alpha Rarefaction</a></strong></div>
+    <li><a href="{{arare_utl}}">View Alpha Rarefaction Plots</a></li>
+    <img src="arare/alpha_rarefaction_plots/average_plots/observed_speciesSampleID.png" alt="[Alpha Rarefaction]">
+    <hr>
+
+    <div class="left"><strong><a id=bdiv name=bdiv>Beta Diversity</a></strong></div>
+    {% for text, url in bdiv_text_url %}
+        <li><a href="{{url}}">View {{text}}</a></li>
+    {% endfor %}
+    <hr>
+
+    <div class='left'><strong><a id='heatmap' name='heatmap'>Heatmap</a></strong></div>
+    <li><a href="{{heatmap_url}}">View OTU Heatmap</a></li>
+    <hr>
+
+    <div class='left'><strong><a id='phylogeny' name='phylogeny'>Phylogenetic Tree</a></strong></div>
+    <li><a href="{{tree_url}}">Right click and select "save as" to download tree</a></li>
+    <hr>
+
+    <div class='left'><strong><a id='software' name='software'>Software</a></strong></div>
+    <table class="brc">
+    <tr><th>Main Pipeline</th><td>v20141224</td></tr>
+    <tr><th>QIIME</th><td>QIIME 1.8.0</td></tr>
+    <tr><th>OTU Clustering</th><td>Uclust</td></tr>
+    <tr><th>Quality Filtering</th><td>Usearch</td></tr>
+    <tr><th>Alignment</th><td>PyNAST</td></tr>
+    <tr><th>Taxonmy Assignment</th><td>RDP Classifier</td></tr>
+    <tr><th>Phylogeny Generation</th><td>FastTree</td></tr>
+    </table>
+    <hr>
+
+    Please acknowledge BRC in your manuscript or presentation. If you think our analysis contributes
+    to your research intellectually please consider authorship for our bioinformaticians.
+</body>
+</html>
