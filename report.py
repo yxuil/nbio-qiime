@@ -124,7 +124,9 @@ def generate_report(config):
     for group, samples in sorted(config["group"].items()):
         for sampleID in samples:
             total_reads, _0 = parse_skewer_log(os.path.join(outputDir, "logs/trim_illumina_{}.log".format(sampleID) ))
-            _0, merged_reads = parse_flash_log(os.path.join(outputDir, "logs/flash_merge_{}.log".format(sampleID) ))
+
+            _0, merged_reads = parse_flash_log(os.path.join(outputDir, "logs/flash_merge_{}.log".format(sampleID) )) \
+                                if os.path.exists("logs/flash_merge_{}.log".format(sampleID)) else "", ""
             _0, trimmed_reads = parse_trim_log(os.path.join(outputDir, "logs/trim_primer_{}.log".format(sampleID) ))
             med_length, filtered_reads =  amplicon_stat[sampleID]["Median length"], amplicon_stat[sampleID]["After"]
             sample = dict(name=sampleID, group=group, total_reads=total_reads, merged_reads=merged_reads,

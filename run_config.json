@@ -1,0 +1,85 @@
+{
+    "PIname": "Grant Kirker",
+    "project": "to compare the fungal communities of in leaf litter and that of the wood adjacent. DNA was extracted from leaf litter and wood directly adjacent in order to compare the fungal community in the leaf litter and determine to what extent the leaf litter determines what fungi ultimately colonize the wood.",
+    "workdir": "/mnt/grl/brc/data/kirker_grant/rt307_Metagenomic_analysis_of_Leaf_litter/qiime_analysis",
+    "OTU_picking": "open -> open reference; denovo -> de novo OTU picking ",
+    "OTU_picking": "open",
+    
+    "reference": "reference for open reference OTU picking",
+    "reference": "ITS --> use current ITS database",
+    "reference": "gg  --> use current greengene database",
+    "reference": "path/to/reference --> use custome reference",
+    "reference": "ignored if 'OTU_picking' is denovo",
+    "reference": "ITS",
+
+    "data_dir": "/mnt/grl/brc/data/kirker_grant/rt307_Metagenomic_analysis_of_Leaf_litter/data",
+    "delivery": "/mnt/grl/agar/users/Kirker/projects/rt307_Metagenomic_analysis_of_Leaf_litter/",
+    "group": {
+        "Leaf": [ "Leaf25",
+                "Leaf26",
+                "Leaf27",
+                "Leaf28",
+                "Leaf29",
+                "Leaf30",
+                "Leaf31",
+                "Leaf32",
+                "Leaf33",
+                "Leaf34"
+        ],
+        "Wood": ["Wood35",
+                "Wood36",
+                "Wood37",
+                "Wood38",
+                "Wood39",
+                "Wood40",
+                "Wood41",
+                "Wood42",
+                "Wood43",
+                "Wood44",
+                "Wood45",
+                "Wood46"
+        ]
+    },
+    "samples": {
+		"Leaf25": ["run764.Leaf25_ACTGAT_L001_R1.fastq.gz", "run764.Leaf25_ACTGAT_L001_R2.fastq.gz"],
+		"Leaf26": ["run764.Leaf26_ATGAGC_L001_R1.fastq.gz", "run764.Leaf26_ATGAGC_L001_R2.fastq.gz"],
+		"Leaf27": ["run764.Leaf27_ATTCCT_L001_R1.fastq.gz", "run764.Leaf27_ATTCCT_L001_R2.fastq.gz"],
+		"Leaf28": ["run764.Leaf28_CAAAAG_L001_R1.fastq.gz", "run764.Leaf28_CAAAAG_L001_R2.fastq.gz"],
+		"Leaf29": ["run764.Leaf29_CAACTA_L001_R1.fastq.gz", "run764.Leaf29_CAACTA_L001_R2.fastq.gz"],
+		"Leaf30": ["run764.Leaf30_CACCGG_L001_R1.fastq.gz", "run764.Leaf30_CACCGG_L001_R2.fastq.gz"],
+		"Leaf31": ["run764.Leaf31_CACGAT_L001_R1.fastq.gz", "run764.Leaf31_CACGAT_L001_R2.fastq.gz"],
+		"Leaf32": ["run764.Leaf32_CACTCA_L001_R1.fastq.gz", "run764.Leaf32_CACTCA_L001_R2.fastq.gz"],
+		"Leaf33": ["run764.Leaf33_CAGGCG_L001_R1.fastq.gz", "run764.Leaf33_CAGGCG_L001_R2.fastq.gz"],
+		"Leaf34": ["run764.Leaf34_CATGGC_L001_R1.fastq.gz", "run764.Leaf34_CATGGC_L001_R2.fastq.gz"],
+		"Wood35": ["run764.Wood35_CATTTT_L001_R1.fastq.gz", "run764.Wood35_CATTTT_L001_R2.fastq.gz"],
+		"Wood36": ["run764.Wood36_CCAACA_L001_R1.fastq.gz", "run764.Wood36_CCAACA_L001_R2.fastq.gz"],
+		"Wood37": ["run764.Wood37_CGGAAT_L001_R1.fastq.gz", "run764.Wood37_CGGAAT_L001_R2.fastq.gz"],
+		"Wood38": ["run764.Wood38_CTAGCT_L001_R1.fastq.gz", "run764.Wood38_CTAGCT_L001_R2.fastq.gz"],
+		"Wood39": ["run764.Wood39_CTATAC_L001_R1.fastq.gz", "run764.Wood39_CTATAC_L001_R2.fastq.gz"],
+		"Wood40": ["run764.Wood40_CTCAGA_L001_R1.fastq.gz", "run764.Wood40_CTCAGA_L001_R2.fastq.gz"],
+		"Wood41": ["run764.Wood41_GACGAC_L001_R1.fastq.gz", "run764.Wood41_GACGAC_L001_R2.fastq.gz"],
+		"Wood42": ["run764.Wood42_TAATCG_L001_R1.fastq.gz", "run764.Wood42_TAATCG_L001_R2.fastq.gz"],
+		"Wood43": ["run764.Wood43_TACAGC_L001_R1.fastq.gz", "run764.Wood43_TACAGC_L001_R2.fastq.gz"],
+		"Wood44": ["run764.Wood44_TATAAT_L001_R1.fastq.gz", "run764.Wood44_TATAAT_L001_R2.fastq.gz"],
+		"Wood45": ["run764.Wood45_TCATTC_L001_R1.fastq.gz", "run764.Wood45_TCATTC_L001_R2.fastq.gz"],
+		"Wood46": ["run764.Wood46_TCCCGA_L001_R1.fastq.gz", "run764.Wood46_TCCCGA_L001_R2.fastq.gz"]
+    }, 
+    "sequence_type": "can be paired, or single. This overrides sample_sequence_type",
+    "sequence_type": "paired",
+
+    "sample_sequence_type": "if it is different for each sample, list individually",
+    "sample_sequence_type": {"MS-A1": "paired", "MS-A2": "single"},
+
+    "paired_min_overlap": "10",
+    "paired_max_overlap": "250",
+
+    "min_amplicon_length": "100",
+    "max_amplicon_length": "480",
+
+    "F_primer": "CTTGGTCATTTAGAGGAAGTAA",
+    "R_primer": "GCTGCGTTCTTTATCGATGC",
+
+    "read_cap": "number of reads to be used in analysis. can use it to use the same number of reads for all samples",
+    "read_cap": "use '0' for no cap, ie. use all the reads from the sample",
+    "read_cap": "0"
+}

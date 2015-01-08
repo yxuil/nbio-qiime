@@ -1,7 +1,11 @@
 QIIME    =  "/mnt/software/qiime-dir/qiime-1.8.0/"
 BAM2FASTX = "/mnt/software/tophat2/bam2fastx"
 FLASH    = "/mnt/software/flash-dir/FLAST-v1.2.7/flash"
-CUTADAPT = "/mnt/software/cutadapt-dir/cutadapt-1.3/bin/cutadapt"
+
+CUTADAPT = "/mnt/software/anaconda/bin/cutadapt"
+# use "/mnt/software/cutadapt-dir/cutadapt-1.3/bin/cutadapt" on CentOS5
+# "/mnt/software/anaconda/bin/cutadapt" on CentOS6
+
 SKEWER   = "/mnt/software/skewer-dir/skewer-0.1.120-linux-x86_64"
 GreenGene= "gg_13_5_otus"  # assuming gg database installed in QIIME path
 ITS      = "its_12_11_otus" # assuming its database installed in QIIME path

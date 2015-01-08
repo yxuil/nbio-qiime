@@ -35,19 +35,29 @@ def sample_path(wc):
 
 rule preprocess:
     input: sample_files=sample_path
-    output: "seq/{sample}_merged.fastq"
+    output: "seq/{sample}_amplicon.fastq"
     params:
-        log_dir = "logs"
+        log_dir = "logs",
+        min_trim_length = "5"
     threads: 8
     message: "\n      Preprocess input sequence file(s): \n{input}"
     run:
         seq_type = config["sequence_type"]#.get("sequence_type", config["sample_sequence_type"][wildcards.sample])
         if seq_type == "single":
-            for fn in wildcards.input:
+            for fn in input.sample_files:
                 full_fn = os.path.join(config["data_dir"], fn)
                 namebits =  fn.split(".")
-                if namebits[-1]  == "bam": # PGM unaligned bam file
+                if namebits[-1].lower()  == "bam": # PGM unaligned bam file
                     shell("{BAM2FASTX} -a -Q --all {full_fn} >> {output}")
+                elif namebits[-1].lower() in ["fastq", "fq"]:
+                    for i, fn in enumerate([f for f in input.sample_files]):
+                        skewer_out = o_dir + "seq/{s_id}_{num}".format(s_id=wildcards.sample, num=i+1)
+                        skewer_log = "{}/trim_illumina_{}.log".format(params.log_dir,wildcards.sample )
+                        shell("{SKEWER} -x AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC "
+                            "-k {params.min_trim_length} -z -o {skewer_out}/ -t {threads} {input};"
+                            "cat {skewer_out}/trimmed.log >> {skewer_log};"
+                            "zcat {skewer_out}/trimmed.fastq.gz >> {output}")
+
                 elif namebits[-1].lower() == "sff":
                     shell("source {QIIME}/activate.sh;process_sff.py -f -i {full_fn} -o {output}")
         elif seq_type == "paired":
@@ -62,13 +72,12 @@ rule preprocess:
                 skewer_log  = "{}/trim_illumina_{}.log".format(params.log_dir,wildcards.sample )
 
                 flash_log = "{}/flash_merge_{}.log".format(params.log_dir, wildcards.sample )
-                flash_out = o_dir + "seq/{s_id}_{num}/".format(s_id=wildcards.sample, num=i+1)
-
+                flash_out = "seq/{s_id}_{num}/".format(s_id=wildcards.sample, num=i+1)
 
                 # trim illumina sequencing primers:
                 shell("{SKEWER} -x AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC "
                         "-y AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT "
-                        "-k 15 -z -o {flash_out} -t {threads} {input};"
+                        "-k {params.min_trim_length} -z -o {flash_out} -t {threads} {input};"
                         "cat {flash_out}/trimmed.log >> {skewer_log}")
 
                 r1_trim = flash_out + "trimmed-pair1.fastq.gz"
@@ -88,7 +97,7 @@ def reverse_complement(seq):
     return bases
 
 rule primer_trim:
-    input:  "seq/{sample}_merged.fastq"
+    input:  "seq/{sample}_amplicon.fastq"
     output: "seq/{sample}_trimmed.fastq.gz", "logs/trim_primer_{sample}.log"
     params:
         fprimer = config["F_primer"],
@@ -309,7 +318,7 @@ rule deliver:
         done
         cp report.html {params.dest_dir}
         cp Workflow.png {params.dest_dir}
-        for f in heatmap otu_network arare bdiv heatmap sl_libraries; do
+        for f in heatmap otu_network arare bdiv heatmap sl_libraries taxa_summary; do
             cp -r $f {params.dest_dir}
         done
         """
