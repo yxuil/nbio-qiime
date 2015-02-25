@@ -130,6 +130,7 @@ rule split_libraries:
         seq =["seq/{}_trimmed.fastq.gz".format(sample) for sample in config["samples"]],
         mapkey = "one_key.txt"
     output: "sl_libraries/seqs.fna"
+    log: "logs/split_library_output.log"
     params:
         sample_id_list=",".join([sample for sample in config["samples"] ]),
         sample_fq_list=",".join(["seq/{}_trimmed.fastq.gz".format(sample) for sample in config["samples"]]),
