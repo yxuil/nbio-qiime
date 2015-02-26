@@ -1,4 +1,4 @@
-QIIME    =  "/mnt/software/qiime-dir/qiime-1.8.0/"
+QIIME    =  "/mnt/software/qiime-dir/qiime-1.9.0/"
 SNAKEMAKE = "/mnt/software/anaconda/envs/py3/bin/snakemake"
 BAM2FASTX = "/mnt/software/tophat2/bam2fastx"
 FLASH    = "/mnt/software/flash-dir/FLAST-v1.2.7/flash"
@@ -9,6 +9,6 @@ CUTADAPT = "/mnt/software/anaconda/bin/cutadapt"
 
 SKEWER   = "/mnt/software/skewer-dir/skewer-0.1.120-linux-x86_64"
 
-GreenGene= "gg_13_5_otus"  # assuming gg database installed in QIIME path
-ITS      = "its_12_11_otus" # assuming its database installed in QIIME path
-RDP      = ""
+GreenGene= "gg_13_8_otus"  # assuming gg database installed in QIIME path
+ITS      = "unite_14_12_its" # assuming its database installed in QIIME path
+Silva      = ""

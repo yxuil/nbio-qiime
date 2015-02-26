@@ -1,12 +1,16 @@
-import sys, os, shutil
-
+import sys, os, shutil, json
 cfg_fn = "run_config.json"
+workdir:
+    config["workdir"]
+
+# make a copy of config file if it is not in the working directory
+
+if not os.path.isfile(cfg_fn):
+    json.dump(config, open(cfg_fn, 'w'), indent=2, sort_keys=True)
+
 
 configfile:
     cfg_fn
-
-workdir:
-    config["workdir"]
 
 
 # include software/program information
@@ -14,7 +18,10 @@ workdir:
 _pipeline_dir = os.path.abspath(sys.path[0])
 
 include:
-    _pipeline_dir + "/toolsinfo"
+    "toolsinfo"
+    # _pipeline_dir + "/toolsinfo"
+include:
+    "qiime_params.py"
 
 o_dir = config["workdir"]
 d_dir =  config ["data_dir"]
@@ -40,7 +47,8 @@ rule preprocess:
         log_dir = "logs",
         min_trim_length = "5"
     threads: 8
-    message: "\n      Preprocess input sequence file(s): \n{input}"
+    log: "logs/preprocess_{sample}.log"
+    message: "\n#      Preprocess input sequence file(s): \n{input}"
     run:
         seq_type = config["sequence_type"]#.get("sequence_type", config["sample_sequence_type"][wildcards.sample])
         if seq_type == "single":
@@ -103,15 +111,16 @@ rule primer_trim:
         fprimer = config["F_primer"],
         rprimer = reverse_complement(config["R_primer"]),
         min_length = str(int(config["min_amplicon_length"]) - len(config["F_primer"]) - len(config["R_primer"]) )
-
+    log: "logs/trim_primer_{sample}.log"
     threads: 8
-    message: "\n      Trimming PCR primer sequences from {input}..."
+    message: "\n#      Trimming PCR primer sequences from {input}..."
     shell: '{CUTADAPT} -g Forward={params.fprimer} -a Reverse={params.rprimer} -n 2 -m {params.min_length} ' \
            '-o {output[0]} {input} > {output[1]}'
 
 rule make_key:
     output: "map_key.txt", "one_key.txt"
-    message: "\n    making the map key file from information in the run_config"
+    message: "\n#    making the map key file from information in the run_config"
+    log: "logs/make_key.log"
     run:
         # shell("echo key > {output}")
         with open(output[0], 'w') as f_out:
@@ -126,9 +135,9 @@ rule make_key:
         shell( "head -2 {output[0]} > {output[1]} ")
 
 rule split_libraries:
-    input:
-        seq =["seq/{}_trimmed.fastq.gz".format(sample) for sample in config["samples"]],
-        mapkey = "one_key.txt"
+    input:["seq/{}_trimmed.fastq.gz".format(sample) for sample in config["samples"]]
+        # seq =["seq/{}_trimmed.fastq.gz".format(sample) for sample in config["samples"]],
+        # mapkey = "one_key.txt"  # -m {input.mapkey}
     output: "sl_libraries/seqs.fna"
     log: "logs/split_library_output.log"
     params:
@@ -138,12 +147,11 @@ rule split_libraries:
         # max_amplicon_length = config["max_amplicon_length"],
         # -l {params.min_amplicon_length} -L {params.max_amplicon_length}
         o_dir = "sl_libraries"
-    message: "\n    Running split_libraries..."
+    message: "\n#    Running split_libraries..."
     shell: "source {QIIME}/activate.sh;" \
-           "split_libraries_fastq.py -i {params.sample_fq_list} --sample_id {params.sample_id_list} -o {params.o_dir} -q 19 " \
-           '-m {input.mapkey} --barcode_type "not-barcoded";' \
+           "split_libraries_fastq.py -i {params.sample_fq_list} --sample_id {params.sample_id_list} -o {params.o_dir} " \
+           ' -q 19 --barcode_type "not-barcoded";' \
            'cp {params.o_dir}/split_library_log.txt logs/'
-
 
 rule OTU_picking:
     input: "sl_libraries/seqs.fna"
@@ -155,91 +163,93 @@ rule OTU_picking:
         hom  = config.get("homology", "97"),
         its  = {ITS},
         r16S = {GreenGene},
-        r18S = {RDP}
+        r18S = {Silva}
     log: "logs/otu_picking.log"
     threads: 8
-    message: "\n    OTU Picking"
+    message: "\n#    OTU Picking"
     run:
         if (params.ref == "denovo"):
             shell("pick_de_novo_otus.py -i {input} -o {params.otus} -f -a -O {threads}")
         else:
             if (params.ref == "ITS"):
-                ref_db = "{QIIME}/{REF}/rep_set/{HOMOLOGY}_otus.fasta".format(QIIME = QIIME,
+                ref_db = "{QIIME}/qiime_default_reference/{REF}/rep_set/{HOMOLOGY}_otus.fasta".format(QIIME = QIIME,
                                             REF   = ITS,
                                             HOMOLOGY = params.hom)
-                params_base=open(_pipeline_dir + "/qiime_params.txt").read()
-                params_str = params_base.format(QIIME = QIIME,
+                params_str = qiime_params_template.format(QIIME = QIIME,
                                             REF   = ITS,
                                             HOMOLOGY = params.hom,
                                             aMETRICS = "observed_species,chao1,shannon",
                                             bMETRICS = "bray_curtis")
             elif (params.ref == "16S"):
-                ref_db = "{QIIME}/{REF}/rep_set/{HOMOLOGY}_otus.fasta".format(QIIME = QIIME,
+                ref_db = "{QIIME}/qiime_default_reference/{REF}/rep_set/{HOMOLOGY}_otus.fasta".format(QIIME = QIIME,
                                             REF   = GreenGene,
                                             HOMOLOGY = params.hom)
-                params_base=open(_pipeline_dir + "/qiime_params.txt").read()
-                params_str = params_base.format(QIIME = QIIME,
+                params_str = qiime_params_template.format(QIIME = QIIME,
                                                 REF   = GreenGene,
                                                 HOMOLOGY = params.hom,
                                                 aMETRICS = "observed_species,chao1,shannon,PD_whole_tree",
                                                 bMETRICS = "unweighted_unifrac,weighted_unifrac")
             elif (params.ref == "18S"):
-                ref_db = "{QIIME}/{REF}/rep_set/{HOMOLOGY}_otus.fasta".format(QIIME = QIIME,
-                                            REF   = RDP,
+                ref_db = "{QIIME}/qiime_default_reference/{REF}/rep_set/{HOMOLOGY}_otus.fasta".format(QIIME = QIIME,
+                                            REF   = Silva,
                                             HOMOLOGY = params.hom)
-                params_base=open(_pipeline_dir + "/qiime_params.txt").read()
-                params_str = params_base.format(QIIME = QIIME,
+                params_str = qiime_params_template.format(QIIME = QIIME,
                                                 REF   = RDP,
                                                 HOMOLOGY = params.hom,
                                                 aMETRICS = "observed_species,chao1,shannon,PD_whole_tree",
                                                 bMETRICS = "unweighted_unifrac,weighted_unifrac")
             else:
-                params_base=open(_pipeline_dir + "/qiime_params.txt").read()
-                params_base=params_base.replace("{QIIME}/{REF}/rep_set/{HOMOLOEY}_otus.fasta",params.ref)
-                params_base=params_base.replace("{QIIME}/{REF}/taxonomy/{HOMOLOEY}_otu_taxonomy.txt", params.ref)
+                params_base=qiime_params_template.replace(r"{QIIME}/{REF}/rep_set/{HOMOLOEY}_otus.fasta",params.ref)
+                params_base=params_base.replace(r"{QIIME}/{REF}/taxonomy/{HOMOLOEY}_otu_taxonomy.txt", params.ref)
                 params_str = params_base.format(aMETRICS = "observed_species,chao1,shannon,PD_whole_tree",
                                                 bMETRICS = "unweighted_unifrac,weighted_unifrac")
             with open(params.par, 'w') as f_out:
                 f_out.write(params_str)
 
-            shell("source /mnt/software/qiime/activate.sh;"\
-                  "pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
-                  "cat {params.o_dir}/log_*.txt > {log}")
+            shell("source {QIIME}/activate.sh;"\
+                  "echo pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
+                  "     pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
+                  "cat {params.o_dir}/log_*.txt >> {log}")
 rule sortOTUs:
     input: "otus/otu_table_mc2_w_tax.biom", "map_key.txt"
     output: "otus/otus_sorted.biom"
-    message: "\n    Sort OTUs biom by SampleID"
-    shell: "source /mnt/software/qiime/activate.sh;"\
+    log: "logs/sortOTUs.log"
+    message: "\n#    Sort OTUs biom by SampleID"
+    shell: "source {QIIME}/activate.sh;"\
            "sort_otu_table.py -i {input[0]} -s SampleID -m {input[1]} -o {output[0]}"
 
 
 rule biom_summary:
     input: "otus/otus_sorted.biom"
     output: "otus/biom_summary.txt"
-    message: "\n    Creating biom_table_summary..."
-    shell: "source /mnt/software/qiime/activate.sh;"
+    log: "logs/biom_summary.log"
+    message: "\n#    Creating biom_table_summary..."
+    shell: "source {QIIME}/activate.sh;"
            "biom summarize-table -i {input} -o {output}"
 
 rule OTU_heatmap:
     input:
         biom = "otus/otus_sorted.biom",
         map = "map_key.txt"
-    output: "heatmap/otus_sorted.html"
+    output: "heatmap/otus_heatmap.png"
+    log: "logs/otus_heatmap.log"
     params:
         o_dir = "heatmap"
-    message: "\n    Making OTU heatmap..."
-    shell: "source /mnt/software/qiime/activate.sh;"
-           "make_otu_heatmap_html.py -i {input.biom} -m {input.map} -o {params.o_dir} -n 2"
+    message: "\n#    Making OTU heatmap..."
+    shell: "source {QIIME}/activate.sh;"
+            "make_otu_heatmap.py -i {input.biom} -o {output} -g png -m {input.map} --color_scheme=YlOrRd --width=6 --height=8 --dpi=150"
+           #"make_otu_heatmap.py -i {input.biom} -m {input.map} -o {params.o_dir} -n 2"
 
 rule OTU_network:
     input:
         map = "map_key.txt",
         biom = "otus/otus_sorted.biom"
     output: "otu_network/real_edge_table.txt"
+    log: "logs/otus_network.log"
     params:
         o_dir = "."
-    message: "\n    Creating OTU network..."
-    shell: "source /mnt/software/qiime/activate.sh;"
+    message: "\n#    Creating OTU network..."
+    shell: "source {QIIME}/activate.sh;"
            "make_otu_network.py -m {input.map} -i {input.biom} -o {params.o_dir}"
 
 rule sum_taxa:
@@ -251,8 +261,8 @@ rule sum_taxa:
     params:
         o_dir = "taxa_summary"
     log: "logs/taxa_summary.log"
-    message: "\n    Creating taxa summary plots..."
-    shell: "source /mnt/software/qiime/activate.sh;"
+    message: "\n#    Creating taxa summary plots..."
+    shell: "source {QIIME}/activate.sh;"
            "summarize_taxa_through_plots.py -f -i {input.biom} -m {input.map} -o {params.o_dir} "
             "-p /mnt/grl/brc/application/qiime_pipeline.0.1/summarize_taxa_params.txt;" \
             "cat taxa_summary/log_*.txt > {log}"
@@ -267,8 +277,8 @@ rule alpha_rarefaction:
         o_dir = "arare"
     log: "logs/alpha_rarefaction.log"
     threads: 8
-    message: "\n    Creating alpha rarefaction plots..."
-    shell: "source /mnt/software/qiime/activate.sh;"
+    message: "\n#    Creating alpha rarefaction plots..."
+    shell: "source {QIIME}/activate.sh;"
            "alpha_rarefaction.py -f -i {input.biom} -m {input.map} "
            "-o {params.o_dir} -p qiime_params.txt -t  {input.tre} -a -O {threads};" \
            "cat {params.o_dir}/log_*.txt > {log}"
@@ -281,12 +291,15 @@ rule beta_diversity:
         biom = "otus/otus_sorted.biom",
         tre = "otus/rep_set.tre",
         biom_summary = "otus/biom_summary.txt"
-    output: "bdiv/bray_curtis_emperor_pcoa_plot/index.html"
+    output: #"bdiv/bray_curtis_emperor_pcoa_plot/index.html",\
+            "bdiv/unweighted_unifrac_emperor_pcoa_plot/index.html",\
+            "bdiv/weighted_unifrac_emperor_pcoa_plot/index.html"
+
     params:
         o_dir = "bdiv"
     log: "logs/beta_diversity.log"
     threads: 8
-    message: "\n    Creating beta diversity plots..."
+    message: "\n#    Creating beta diversity plots..."
     shell:
            "source {QIIME}/activate.sh;" \
            'line=`grep " Min:" {input.biom_summary}`; min=${{line:6}}; min=(${{min//./ }});' \
@@ -295,15 +308,16 @@ rule beta_diversity:
            'cat {params.o_dir}/log_*.txt > {log}'
 
 rule report:
-    input: "bdiv/bray_curtis_emperor_pcoa_plot/index.html", \
+    input: "bdiv/unweighted_unifrac_emperor_pcoa_plot/index.html", \
            'arare/alpha_rarefaction_plots/rarefaction_plots.html', \
            "taxa_summary/taxa_summary_plots/bar_charts.html", \
            "otu_network/real_edge_table.txt",\
-           "heatmap/otus_sorted.html",\
+           "heatmap/otus_heatmap.png",\
            "otus/biom_summary.txt",\
            "otus/otus_sorted.biom",\
            "otus/rep_set.tre"
     output: "report.html"
+    log: "logs/report.log"
     shell:
         "python {_pipeline_dir}/report.py {cfg_fn}"
 

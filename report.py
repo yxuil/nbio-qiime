@@ -159,7 +159,7 @@ def generate_report(config):
     bdiv_url = glob("bdiv/*/*.html")
     bdiv_text = [u.split("/")[-2].lower().replace("emperor_", "").replace("pcoa", "PCoA").replace("_", " ") for u in bdiv_url]
 
-    heatmap_url = './heatmap/otus_sorted.html'
+    heatmap_url = './heatmap/otus_heatmap.png'
     tree_url = './otus/rep_set.tre'
 
     t = Template(open(os.path.join(os.path.abspath(sys.path[0]), "report.html")).read())
