@@ -13,8 +13,8 @@ def parse_skewer_log(log_fn):
         for line in f_in:
             if "read pairs processed" in line:
                 total += [int(s) for s in line.split() if s.isdigit()][0]
-            if "read pairs available" in line:
-                total += [int(s) for s in line.split() if s.isdigit()][0]
+            if "read pairs available; of these" in line:
+                trimmed += [int(s) for s in line.split() if s.isdigit()][0]
     return total, trimmed
 
 
@@ -126,11 +126,11 @@ def generate_report(config):
             total_reads, _0 = parse_skewer_log(os.path.join(outputDir, "logs/trim_illumina_{}.log".format(sampleID) ))
 
             _0, merged_reads = parse_flash_log(os.path.join(outputDir, "logs/flash_merge_{}.log".format(sampleID) )) \
-                                if os.path.exists("logs/flash_merge_{}.log".format(sampleID)) else "", ""
+                                if os.path.exists("logs/flash_merge_{}.log".format(sampleID)) else "na"
             _0, trimmed_reads = parse_trim_log(os.path.join(outputDir, "logs/trim_primer_{}.log".format(sampleID) ))
             med_length, filtered_reads =  amplicon_stat[sampleID]["Median length"], amplicon_stat[sampleID]["After"]
             sample = dict(name=sampleID, group=group, total_reads=total_reads, merged_reads=merged_reads,
-                          trimmed_resds=trimmed_reads, filtered_reads=filtered_reads, med_length=med_length)
+                          trimmed_reads=trimmed_reads, filtered_reads=filtered_reads, med_length=med_length)
             sample_stat.append(sample)
     # collect taxa summary plot information
     taxa_url = './taxa_summary/taxa_summary_plots/bar_charts.html'
