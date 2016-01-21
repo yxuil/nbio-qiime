@@ -1,10 +1,10 @@
 USAGE="Usage: run_qiime_sge.sh run_config_file [-c \"qsub_command\"] [snakemake options]
   run_config_file: Run configuration in JSON format. Refer to the example.
                    Required paramter
-  qsub_command:    qsub command, like: \"qsub -V -cwd -j y -b y -o {log} -q brchigh.q\"
+  qsub_command:    qsub command, like: \"qsub -V -cwd -j y -b y -o {log} -q all.q\"
                    if it is specified, it has to be right after config file
   options:         Other valid snakemake options"
-qsub_default="qsub -V -cwd -j y -b y -o {log} -q brchigh.q"
+qsub_default="qsub -V -cwd -j y -b y -o {log} -q all.q"
 if hash qsub 2>/dev/null; then
     progPath=`dirname $0`
     snakemake_com=/mnt/software/anaconda/envs/py3/bin/snakemake

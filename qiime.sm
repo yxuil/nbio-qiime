@@ -150,7 +150,7 @@ rule split_libraries:
     message: "\n#    Running split_libraries..."
     shell: "source {QIIME}/activate.sh;" \
            "split_libraries_fastq.py -i {params.sample_fq_list} --sample_id {params.sample_id_list} -o {params.o_dir} " \
-           ' -q 19 --barcode_type "not-barcoded";' \
+           ' -q 14 --barcode_type "not-barcoded";' \
            'cp {params.o_dir}/split_library_log.txt logs/'
 
 rule OTU_picking:
