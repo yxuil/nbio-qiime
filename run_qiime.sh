@@ -18,9 +18,11 @@ if hash $snakemake_com 2>/dev/null; then
     if [ -f $1 ]; then
         cfg=$1
         shift
+        # -j specify the number of cores. If available, use it directly 
         if [[ " $* " == *" -j "* ]]; then
             set -x
             $snakemake_com -s ${progPath}/${snakemake_file} --configfile ${cfg} "$@"
+        # if not specified, add -j with half of machine's cores.
         else
             let p=`nproc`/2  # use half of the available cores
             set -x

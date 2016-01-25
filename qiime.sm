@@ -1,14 +1,130 @@
+"""
+QIIME pipeline
+==============
+
+Clone the pipeline
+
+  git clone file:///mnt/grl/brc/version_control/repositories/qiime_sm.git/
+
+log in (CentOS 6 or above) with X11 enabled (use NX client or ssh -Y)
+(QIIME only works in CentOS 6 with X windows)
+
+Without X11, the bug in QIIME plotting functions makes it crush
+Make sure /mnt/software/anaconda/bin/ is in your PATH so the proper python environment 
+can be invoked:
+
+  # Activate python virtual environment qiime1.9
+  source activate qiime1.9
+
+Create a run config file according to the run_config.json in the pipeline.
+
+Run QIIME pipeline script, subsititute path and the run_cfg with yours:
+
+  path/to/qiime_sm/run_qiime.sh run_cfg.json
+
+The first few step can be run on SGE to take advantage of the cluster (reads trimming, 
+join, OTU assignment etc.).
+
+  # otu_picking instruct the pipeline to run until OTUs are assigned
+  # -j specify how many SGE nodes can be used. 
+  # -p prints out the command whenever appropriate
+  path/to/qiime_sm/run_qiime_sge.sh run_cfg.json otu_picking -j 5 -p
+
+Then finish the rest with run_qiime.sh locally under X windows environment.
+
+To get help with options:
+
+  path/to/qiime_sm/run_qiime.sh -h
+
+Run configuration file
+======================
+
+A run config file in JSON format specifies the data path, work directory, reference, 
+and other important parameters for the QIIME data analysis.
+
+An example is:
+
+run_config.json
+
+ {
+   "PIname": "Bill Hickey",
+   "project": "DNA extracts from soil samples",
+   "workdir": "/mnt/grl/brc/data/hickey_bill/rt319_soil_community/qiime_analysis_sumo/",
+   "OTU_picking": "open",
+   "reference": "16S",
+   "data_dir": "/mnt/grl/brc/data/hickey_bill/rt319_soil_community/data",
+   "delivery": "/mnt/grl/agar/users/Hickey/projects/rt319_soil_community",
+   "group": {
+         "1": ["1a","1b","1c"],
+         "2": ["2a","2b","2c"]
+   },
+   "samples": {
+         "1a": ["1a_GAATTCGT-CCTATCCT_L001_R1_001.fastq.gz", "1a_GAATTCGT-CCTATCCT_L001_R2_001.fastq.gz"],
+         "1b": ["1b_GAATTCGT-GGCTCTGA_L001_R1_001.fastq.gz", "1b_GAATTCGT-GGCTCTGA_L001_R2_001.fastq.gz"],
+         "1c": ["1c_GAATTCGT-AGGCGAAG_L001_R1_001.fastq.gz", "1c_GAATTCGT-AGGCGAAG_L001_R2_001.fastq.gz"],
+         "2a": ["2a_GAATTCGT-TAATCTTA_L001_R1_001.fastq.gz", "2a_GAATTCGT-TAATCTTA_L001_R2_001.fastq.gz"],
+         "2b": ["2b_GAATTCGT-CAGGACGT_L001_R1_001.fastq.gz", "2b_GAATTCGT-CAGGACGT_L001_R2_001.fastq.gz"],
+         "2c": ["2c_GAATTCGT-GTACTGAC_L001_R1_001.fastq.gz", "2c_GAATTCGT-GTACTGAC_L001_R2_001.fastq.gz"]
+   }, 
+   "sequence_type": "paired",
+   "sample_sequence_type": {"MS-A1": "paired", "MS-A2": "single"},
+   "paired_min_overlap": "10",
+   "paired_max_overlap": "250",
+   "min_amplicon_length": "100",
+   "max_amplicon_length": "480",
+   "F_primer": "CTTGGTCATTTAGAGGAAGTAA",
+   "R_primer": "GCTGCGTTCTTTATCGATGC",
+   "read_cap": "0"
+ }
+
+
+The run configuaration needs to be in JSON formate. Specially pay attension to the comma if you have not used it often.
+
+PIname, project: are simple descriptions of the project itself. the content will be copied to the 
+             report.html.
+workdir:     The directory for output. will be created if not exists
+data_dir:    The directory of raw sequence data. I usually create a directory and create symbolic
+             links to each sequence files.
+reference:   need to be set for different type of project. specify 16S for bacteria, ITS for fungal, 
+             or 18S for eukaryotic samples. The current pipeline will use greengene 2013-08 for 16S; 
+             Unite 2014 for ITS; and Silva-111 for 16S and 18S reference database.
+             use "denovo" if no reference database is available.
+OTU_picking: Currently it has no effect. Default using "open" OTU_picking; unless "reference" is set to "denovo"
+group:       are useful for visual differentiation in the plot. it should be following format:
+             "groupName": ["sample1", "sample2"]
+samples:     define the sample name and corresponding files. The filenames will be appended to the
+             "data_dir"
+sequence_type: can be paired, or single. This overrides sample_sequence_type 
+sample_sequence_type: if it is different for each sample, list individually. (Not sure how useful this  
+             option is. I have never used it since implementation)
+read_cap:    is the number of reads to be used in analysis. can use it to use the same number of reads 
+             for all samples. Use '0' for no cap, ie. use all the reads from the sample
+
+
+Project files
+=============
+.
+├── qiime_params.py                 <- default qiime parameters. Is imported to qiime.sm file
+├── qiime_pipeline_manual.txt       <- old qiime pipeline manual. obselete
+├── qiime.sm                        <- This file. Main pipeline
+├── report.html                     <- report html file template for report module
+├── report.py                       <- custom report module
+├── run_config.json                 <- example run configuration file
+├── run_qiime_sge.sh                <- run qiime on SGE (wont work for ploting rules)
+├── run_qiime.sh                    <- run qiime on local machine
+├── toolsinfo                       <- default paths to programs used
+└── Workflow.png                    <- workflow flowchart
+"""
+
+
 import sys, os, shutil, json
 cfg_fn = "run_config.json"
 workdir:
     config["workdir"]
 
 # make a copy of config file if it is not in the working directory
-
 if not os.path.isfile(cfg_fn):
     json.dump(config, open(cfg_fn, 'w'), indent=2, sort_keys=True)
-
-
 configfile:
     cfg_fn
 
@@ -30,12 +146,17 @@ delivery = config["delivery"]
 for d in ["logs"]:
     if not os.path.exists(d): os.makedirs(d)
 
+# if no rue is given in the command line, snakemake defaults to run the first
+# rule in the pipeline
 rule all:
     input: "report.html"
 
-
+# return file paths defined in the 'samples' section in the config. The function
+# is used as the input for preprocess rule
+# check 'function as input' in the snakemake docs.
 def sample_path(wc):
     sample_files = []
+    # add absolute path to the file name
     for fn in config["samples"][wc.sample]:
         sample_files.append(os.path.join(config["data_dir"], fn))
     return sample_files
@@ -51,13 +172,16 @@ rule preprocess:
     message: "\n#      Preprocess input sequence file(s): \n{input}"
     run:
         seq_type = config["sequence_type"]#.get("sequence_type", config["sample_sequence_type"][wildcards.sample])
+        # Single or paired read
         if seq_type == "single":
+            # process bam (from IonTorrent), or fastq (illumna), or fasta+qual(454)
             for fn in input.sample_files:
                 full_fn = os.path.join(config["data_dir"], fn)
                 namebits =  fn.split(".")
                 if namebits[-1].lower()  == "bam": # PGM unaligned bam file
                     shell("{BAM2FASTX} -a -Q --all {full_fn} >> {output}")
                 elif namebits[-1].lower() in ["fastq", "fq"]:
+                    # trim fastq file, one at a time. Merge to {output} file
                     for i, fn in enumerate([f for f in input.sample_files]):
                         skewer_out = o_dir + "seq/{s_id}_{num}".format(s_id=wildcards.sample, num=i+1)
                         skewer_log = "{}/trim_illumina_{}.log".format(params.log_dir,wildcards.sample )
@@ -69,10 +193,12 @@ rule preprocess:
                 elif namebits[-1].lower() == "sff":
                     shell("source {QIIME}/activate.sh;process_sff.py -f -i {full_fn} -o {output}")
         elif seq_type == "paired":
+            # paired reads need to be merged in addition to trimming.
             min_overlap = config.get('paired_min_overlap', 10),
             max_overlap = config.get('paired_max_overlap', 250)
             for i, fn in enumerate([f for f in input.sample_files if "R1" in f]):
                 r1 = os.path.join(config["data_dir"], fn)
+                # assuming paired end reads differentiates each other with R1 & R2
                 r2 = r1.replace("R1", "R2")
                 if not os.path.exists(r2): print("ERROR: no R2 reads for %s" % (r1))
 
@@ -90,10 +216,7 @@ rule preprocess:
 
                 r1_trim = flash_out + "trimmed-pair1.fastq.gz"
                 r2_trim = flash_out + "trimmed-pair2.fastq.gz"
-
-                # shell("{CUTADAPT} -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -o {r1_trim} {r1}")
-                # shell("{CUTADAPT} -a AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT -o {r2_trim} {r2}")
-
+                
                 shell("{FLASH}  {r1_trim} {r2_trim} -m {min_overlap} -M {max_overlap} -d {flash_out} >> {flash_log};"\
                       "cat {flash_out}/out.extendedFrags.fastq >> {output}")
 
@@ -117,12 +240,18 @@ rule primer_trim:
     shell: '{CUTADAPT} -g Forward={params.fprimer} -a Reverse={params.rprimer} -n 2 -m {params.min_length} ' \
            '-o {output[0]} {input} > {output[1]}'
 
+# make the sample key file for the QIIME pipeline
+# also a one line 'dummy' key file for the split_libraries step, becauses of a previous
+# QIIME bug. Newer QIIME probably wont need it.
 rule make_key:
     output: "map_key.txt", "one_key.txt"
     message: "\n#    making the map key file from information in the run_config"
     log: "logs/make_key.log"
     run:
-        # shell("echo key > {output}")
+        # the table content are from the configuration file, wrote out as a
+        # tabbed text file. 
+
+        # sample mapping file
         with open(output[0], 'w') as f_out:
             f_out.write("#SampleID\tBarcodeSequence\tLinkerPrimerSequence\tReversePrimerSequence\tSequenceType\tGroup\tDescription\n")
             for group, samples in sorted(config["group"].items()):
@@ -132,8 +261,17 @@ rule make_key:
                     f_out.write("\t".join([sampleID, "", config["F_primer"], config["R_primer"], seq_type, group, sampleID]))
                     f_out.write("\n")
 
+        # the dummy sample mapping file
         shell( "head -2 {output[0]} > {output[1]} ")
 
+
+# This rule creates target file seqs.fna using QIIME split libraries pipeline
+# for fastq files. 
+# This step uses the dummy mapping key file.
+# The target file is the start point of QIIME analysis pipelines. This file
+# contains sequences that passed quality filter from all samples.
+
+# NOTE: source activate.sh probably is not needed after updating to QIIME 1.9
 rule split_libraries:
     input:["seq/{}_trimmed.fastq.gz".format(sample) for sample in config["samples"]]
         # seq =["seq/{}_trimmed.fastq.gz".format(sample) for sample in config["samples"]],
@@ -153,6 +291,12 @@ rule split_libraries:
            ' -q 14 --barcode_type "not-barcoded";' \
            'cp {params.o_dir}/split_library_log.txt logs/'
 
+# This rule creates taxonomy assignment file with QIIME OTU picking pipeline(s)
+# Run configure file determain if there is reference (16S, 18S, or ITS
+# databases).
+# The 'run' section modifies QIIME parameters according to the type of databases
+# uses appropriately for this and later steps.
+
 rule OTU_picking:
     input: "sl_libraries/seqs.fna"
     output: "otus/otu_table_mc2_w_tax.biom", "otus/rep_set.tre"
@@ -169,8 +313,12 @@ rule OTU_picking:
     message: "\n#    OTU Picking"
     run:
         if (params.ref == "denovo"):
+            # de novo OTU picking. prefer not to use.
             shell("pick_de_novo_otus.py -i {input} -o {params.otus} -f -a -O {threads}")
         else:
+            # Open reference OTU picking
+            # set the reference database; and alpha / beta diversity methods
+            # (not all methods can be used for each type of database)
             if (params.ref == "ITS"):
                 ref_db = "{QIIME}/qiime_default_reference/{REF}/rep_set/{HOMOLOGY}_otus.fasta".format(QIIME = QIIME,
                                             REF   = ITS,
@@ -184,12 +332,15 @@ rule OTU_picking:
                 ref_db = "{QIIME}/qiime_default_reference/{REF}/rep_set/{HOMOLOGY}_otus.fasta".format(QIIME = QIIME,
                                             REF   = GreenGene,
                                             HOMOLOGY = params.hom)
+                # TODO: test which bMETRICS method (that was removed for ITS
+                # compatibility) can be re-added for 16S data
                 params_str = qiime_params_template.format(QIIME = QIIME,
                                                 REF   = GreenGene,
                                                 HOMOLOGY = params.hom,
                                                 aMETRICS = "observed_species,chao1,shannon,PD_whole_tree",
                                                 bMETRICS = "unweighted_unifrac,weighted_unifrac")
             elif (params.ref == "18S"):
+                # TODO update the Silva information in toolsinfo file
                 ref_db = "{QIIME}/qiime_default_reference/{REF}/rep_set/{HOMOLOGY}_otus.fasta".format(QIIME = QIIME,
                                             REF   = Silva,
                                             HOMOLOGY = params.hom)
@@ -205,11 +356,13 @@ rule OTU_picking:
                                                 bMETRICS = "unweighted_unifrac,weighted_unifrac")
             with open(params.par, 'w') as f_out:
                 f_out.write(params_str)
-
+            # with saved parameters run open_reference_otus.
             shell("source {QIIME}/activate.sh;"\
                   "echo pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
                   "     pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
                   "cat {params.o_dir}/log_*.txt >> {log}")
+
+# This rule sort the OTU table with SampleID.
 rule sortOTUs:
     input: "otus/otu_table_mc2_w_tax.biom", "map_key.txt"
     output: "otus/otus_sorted.biom"
@@ -218,7 +371,8 @@ rule sortOTUs:
     shell: "source {QIIME}/activate.sh;"\
            "sort_otu_table.py -i {input[0]} -s SampleID -m {input[1]} -o {output[0]}"
 
-
+# This rule summarizes the OTU table with biom tool
+# biom tool has more function (export counts, percentage etc.) than sorting.
 rule biom_summary:
     input: "otus/otus_sorted.biom"
     output: "otus/biom_summary.txt"
@@ -227,6 +381,7 @@ rule biom_summary:
     shell: "source {QIIME}/activate.sh;"
            "biom summarize-table -i {input} -o {output}"
 
+# compare to earlier verion rich HTML heatmap is replaced with PNG heatmap
 rule OTU_heatmap:
     input:
         biom = "otus/otus_sorted.biom",
@@ -240,6 +395,7 @@ rule OTU_heatmap:
             "make_otu_heatmap.py -i {input.biom} -o {output} -g png -m {input.map} --color_scheme=YlOrRd --width=6 --height=8 --dpi=150"
            #"make_otu_heatmap.py -i {input.biom} -m {input.map} -o {params.o_dir} -n 2"
 
+# OTUs network graph that can be opened by Cytoscape
 rule OTU_network:
     input:
         map = "map_key.txt",
@@ -252,6 +408,10 @@ rule OTU_network:
     shell: "source {QIIME}/activate.sh;"
            "make_otu_network.py -m {input.map} -i {input.biom} -o {params.o_dir}"
 
+# This rule creates the bar charts that represent organism composition of each
+# samples. 
+# results are summarized in HTML file. But text files are also saved along side
+# too.
 rule sum_taxa:
     input:
         map = "map_key.txt",
@@ -262,11 +422,18 @@ rule sum_taxa:
         o_dir = "taxa_summary"
     log: "logs/taxa_summary.log"
     message: "\n#    Creating taxa summary plots..."
+
+    # the summarize_taxa_params.txt specifies what level (family, genus,
+    # species?), and type of grap (bar) in the result.
+    # TODO: This summarize_taxa_params.txt should be able to be replaced
+    # including the these lines in qiim_params.py
     shell: "source {QIIME}/activate.sh;"
            "summarize_taxa_through_plots.py -f -i {input.biom} -m {input.map} -o {params.o_dir} "
-            "-p /mnt/grl/brc/application/qiime_pipeline.0.1/summarize_taxa_params.txt;" \
+            "-p {_pipeline_dir}/summarize_taxa_params.txt;" \
             "cat taxa_summary/log_*.txt > {log}"
 
+# This rule created the alpha rarefication curves
+# The parameter files are used here.
 rule alpha_rarefaction:
     input:
         map = "map_key.txt",
@@ -283,7 +450,7 @@ rule alpha_rarefaction:
            "-o {params.o_dir} -p qiime_params.txt -t  {input.tre} -a -O {threads};" \
            "cat {params.o_dir}/log_*.txt > {log}"
 
-
+# This rule crated the beta diversity plots
 rule beta_diversity:
     # use the minimum reads number as the parameter e for even sampling
     input:
@@ -307,6 +474,7 @@ rule beta_diversity:
            '-e $min -p qiime_params.txt -a -O {threads} -o {params.o_dir};' \
            'cat {params.o_dir}/log_*.txt > {log}'
 
+# report rule required all deliverable files made by QIIME pipeline
 rule report:
     input: "bdiv/unweighted_unifrac_emperor_pcoa_plot/index.html", \
            'arare/alpha_rarefaction_plots/rarefaction_plots.html', \
@@ -321,6 +489,7 @@ rule report:
     shell:
         "python {_pipeline_dir}/report.py {cfg_fn}"
 
+# Use this rule to copy deliverables to the user folder.
 rule deliver:
     input: "report.html"
     params: dest_dir = config["delivery"]

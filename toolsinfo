@@ -11,4 +11,4 @@ SKEWER   = "/mnt/software/skewer-dir/skewer-0.1.123-linux-x86_64"
 
 GreenGene= "gg_13_8_otus"  # assuming gg database installed in QIIME path
 ITS      = "unite_14_12_its" # assuming its database installed in QIIME path
-Silva      = ""
+Silva    = "Silva_111"
