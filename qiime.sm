@@ -54,6 +54,7 @@ run_config.json
    "reference": "16S",
    "data_dir": "/mnt/grl/brc/data/hickey_bill/rt319_soil_community/data",
    "delivery": "/mnt/grl/agar/users/Hickey/projects/rt319_soil_community",
+
    "group": {
          "1": ["1a","1b","1c"],
          "2": ["2a","2b","2c"]
@@ -115,9 +116,15 @@ Project files
 ├── toolsinfo                       <- default paths to programs used
 └── Workflow.png                    <- workflow flowchart
 """
-
+__author__ = "Xiaoyu Liu"
+__email__ = "liux@nbio.info"
+__copyright__ = "Copyright (C) 2016 Xiaoyu Liu"
+__status__ = "development"
+__license__ = "Public Domain"
+__version__ = "0.3"
 
 import sys, os, shutil, json
+from datetime import datetime
 cfg_fn = "run_config.json"
 workdir:
     config["workdir"]
@@ -143,12 +150,16 @@ o_dir = config["workdir"]
 d_dir =  config ["data_dir"]
 delivery = config["delivery"]
 
-for d in ["logs"]:
-    if not os.path.exists(d): os.makedirs(d)
+# out put commands to the log file (in result dir, with date stamp)
+cmd_log = os.path.join(config["workdir"], "commands_{}.log".format(datetime.now().strftime("%Y%m%d")))
+
+for d in ["logs"]: # can add more folders that are need to be created prior to actually run
+    if not os.path.exists(d): 
+        os.makedirs(d)
 
 # if no rue is given in the command line, snakemake defaults to run the first
 # rule in the pipeline
-rule all:
+
     input: "report.html"
 
 # return file paths defined in the 'samples' section in the config. The function
@@ -156,11 +167,15 @@ rule all:
 # check 'function as input' in the snakemake docs.
 def sample_path(wc):
     sample_files = []
-    # add absolute path to the file name
+    # add absolute path to the file name if there is no leading "/"
     for fn in config["samples"][wc.sample]:
-        sample_files.append(os.path.join(config["data_dir"], fn))
+        if not fn.strip().startswith("/"):
+           sample_files.append(os.path.join(config["data_dir"], fn))
     return sample_files
 
+# preprocess takes the input sequence files, and trim, filter, merge according
+# to their specific source (fastq.gz: MiSeq; .bam: IonTorrent; fas & qual: 454
+# echo output is the samplicon sequence of each sample
 rule preprocess:
     input: sample_files=sample_path
     output: "seq/{sample}_amplicon.fastq"
@@ -179,19 +194,25 @@ rule preprocess:
                 full_fn = os.path.join(config["data_dir"], fn)
                 namebits =  fn.split(".")
                 if namebits[-1].lower()  == "bam": # PGM unaligned bam file
-                    shell("{BAM2FASTX} -a -Q --all {full_fn} >> {output}")
+                    shell("echo \"{BAM2FASTX} -a -Q --all {full_fn} >> {output}\" >> {cmd_log}")
+                    shell(       "{BAM2FASTX} -a -Q --all {full_fn} >> {output}" )
                 elif namebits[-1].lower() in ["fastq", "fq"]:
                     # trim fastq file, one at a time. Merge to {output} file
                     for i, fn in enumerate([f for f in input.sample_files]):
                         skewer_out = o_dir + "seq/{s_id}_{num}".format(s_id=wildcards.sample, num=i+1)
                         skewer_log = "{}/trim_illumina_{}.log".format(params.log_dir,wildcards.sample )
-                        shell("{SKEWER} -x AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC "
+                        shell("echo \"{SKEWER} -x AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC "
                             "-k {params.min_trim_length} -z -o {skewer_out}/ -t {threads} {input};"
                             "cat {skewer_out}/trimmed.log >> {skewer_log};"
-                            "zcat {skewer_out}/trimmed.fastq.gz >> {output}")
-
+                            "zcat {skewer_out}/trimmed.fastq.gz >> {output} \" >>  {cmd_log}")
+                        shell(       "{SKEWER} -x AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC "
+                            "-k {params.min_trim_length} -z -o {skewer_out}/ -t {threads} {input};"
+                            "cat {skewer_out}/trimmed.log >> {skewer_log};"
+                            "zcat {skewer_out}/trimmed.fastq.gz >> {output}\n")
                 elif namebits[-1].lower() == "sff":
-                    shell("process_sff.py -f -i {full_fn} -o {output}")
+                    shell("echo \"process_sff.py -f -i {full_fn} -o {output}\" >> {cmd_log}" )@
+                    shell(       "process_sff.py -f -i {full_fn} -o {output}")
+
         elif seq_type == "paired":
             # paired reads need to be merged in addition to trimming.
             min_overlap = config.get('paired_min_overlap', 10),
@@ -209,16 +230,22 @@ rule preprocess:
                 flash_out = "seq/{s_id}_{num}/".format(s_id=wildcards.sample, num=i+1)
 
                 # trim illumina sequencing primers:
-                shell("{SKEWER} -x AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC "
+                shell("echo \"{SKEWER} -x AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC "
+                        "-y AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT "
+                        "-k {params.min_trim_length} -z -o {flash_out} -t {threads} {input};"
+                        "cat {flash_out}/trimmed.log >> {skewer_log}\" >>{cmd_log}" )
+                shell(       H"{SKEWER} -x AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC "
                         "-y AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT "
                         "-k {params.min_trim_length} -z -o {flash_out} -t {threads} {input};"
                         "cat {flash_out}/trimmed.log >> {skewer_log}")
 
                 r1_trim = flash_out + "trimmed-pair1.fastq.gz"
                 r2_trim = flash_out + "trimmed-pair2.fastq.gz"
-                
-                shell("{FLASH}  {r1_trim} {r2_trim} -m {min_overlap} -M {max_overlap} -d {flash_out} >> {flash_log};"\
-                      "cat {flash_out}/out.extendedFrags.fastq >> {output}")
+
+                shell("echo \"{FLASH} {r1_trim} {r2_trim} -m {min_overlap} -M {max_overlap} -d {flash_out} >> {flash_log}\" >> {cmd_log}" )
+                shell(       "{FLASH} {r1_trim} {r2_trim} -m {min_overlap} -M {max_overlap} -d {flash_out} >> {flash_log}")
+                shell("echo \"cat {flash_out}/out.extendedFrags.fastq >> {output}\" >> {cmd_log}")
+                shell(       "cat {flash_out}/out.extendedFrags.fastq >> {output}"))
 
 def reverse_complement(seq):
     complement = dict(zip("ATGCYRWSKMDVHBN", "TACGRYWSMKHBDVN"))#{'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
@@ -237,7 +264,9 @@ rule primer_trim:
     log: "logs/trim_primer_{sample}.log"
     threads: 8
     message: "\n#      Trimming PCR primer sequences from {input}..."
-    shell: '{CUTADAPT} -g Forward={params.fprimer} -a Reverse={params.rprimer} -n 2 -m {params.min_length} ' \
+    shell: 'echo \"{CUTADAPT} -g Forward={params.fprimer} -a Reverse={params.rprimer} -n 2 -m {params.min_length} '
+           '-o {output[0]} {input} > {output[1]}\" >> {cmd_log} \n'
+           '{CUTADAPT} -g Forward={params.fprimer} -a Reverse={params.rprimer} -n 2 -m {params.min_length} ' \
            '-o {output[0]} {input} > {output[1]}'
 
 # make the sample key file for the QIIME pipeline
@@ -262,7 +291,8 @@ rule make_key:
                     f_out.write("\n")
 
         # the dummy sample mapping file
-        shell( "head -2 {output[0]} > {output[1]} ")
+        shell("echo \"head -2 {output[0]} > {output[1]}\" >> {cmd_log}")
+        shell(       "head -2 {output[0]} > {output[1]} ")
 
 
 # This rule creates target file seqs.fna using QIIME split libraries pipeline
@@ -285,10 +315,14 @@ rule split_libraries:
         # -l {params.min_amplicon_length} -L {params.max_amplicon_length}
         o_dir = "sl_libraries"
     message: "\n#    Running split_libraries..."
-    shell: "split_libraries_fastq.py -i {params.sample_fq_list} --sample_id {params.sample_id_list} -o {params.o_dir} " \
-           ' -q 14 --barcode_type "not-barcoded";' \
-           'cp {params.o_dir}/split_library_log.txt logs/'
 
+    shell: "echo \"split_libraries_fastq.py -i {params.sample_fq_list} --sample_id {params.sample_id_list} "
+           '-o {params.o_dir} -q 14 --barcode_type \'not-barcoded\'; '
+           'cp {params.o_dir}/split_library_log.txt logs/ >> {cmd_log} \n'
+                  "split_libraries_fastq.py -i {params.sample_fq_list} --sample_id {params.sample_id_list} "
+           '-o {params.o_dir} -q 14 --barcode_type "not-barcoded"; ' \
+           'cp {params.o_dir}/split_library_log.txt logs/'
+=
 # This rule creates taxonomy assignment file with QIIME OTU picking pipeline(s)
 # Run configure file determain if there is reference (16S, 18S, or ITS
 # databases).
@@ -354,10 +388,16 @@ rule OTU_picking:
                                                 bMETRICS = "unweighted_unifrac,weighted_unifrac")
             with open(params.par, 'w') as f_out:
                 f_out.write(params_str)
+
+            # above steps create parameter file appropriate to the source data.
+            # that will not duplate in saved command log
+            shell("echo \"\# Make QIIME parameter file\" >> {cmd_log}")
+
             # with saved parameters run open_reference_otus.
-            shell("echo pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
-                  "     pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
-                  "cat {params.o_dir}/log_*.txt >> {log}")
+            shell("echo pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads} >> {cmd_log}")
+            shell(     "pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads}")
+            shell("echo \"cat {params.o_dir}/log_*.txt >> {log}\" >> {cmd_log}")
+            shell(       "cat {params.o_dir}/log_*.txt >> {log}")
 
 # This rule sort the OTU table with SampleID.
 rule sortOTUs:
@@ -365,7 +405,8 @@ rule sortOTUs:
     output: "otus/otus_sorted.biom"
     log: "logs/sortOTUs.log"
     message: "\n#    Sort OTUs biom by SampleID"
-    shell: "sort_otu_table.py -i {input[0]} -s SampleID -m {input[1]} -o {output[0]}"
+    shell: "echo sort_otu_table.py -i {input[0]} -s SampleID -m {input[1]} -o {output[0]} >> {cmd_log}\n"
+                "sort_otu_table.py -i {input[0]} -s SampleID -m {input[1]} -o {output[0]}"
 
 # This rule summarizes the OTU table with biom tool
 # biom tool has more function (export counts, percentage etc.) than sorting.
@@ -374,7 +415,8 @@ rule biom_summary:
     output: "otus/biom_summary.txt"
     log: "logs/biom_summary.log"
     message: "\n#    Creating biom_table_summary..."
-    shell: "biom summarize-table -i {input} -o {output}"
+    shell: "echo \"biom summarize-table -i {input} -o {output}\" >> {cmd_log}\n"
+                  "biom summarize-table -i {input} -o {output}"
 
 # compare to earlier verion rich HTML heatmap is replaced with PNG heatmap
 rule OTU_heatmap:
@@ -386,8 +428,9 @@ rule OTU_heatmap:
     params:
         o_dir = "heatmap"
     message: "\n#    Making OTU heatmap..."
-    shell: "make_otu_heatmap.py -i {input.biom} -o {output} -g png -m {input.map} --color_scheme=YlOrRd --width=6 --height=8 --dpi=150"
-           #"make_otu_heatmap.py -i {input.biom} -m {input.map} -o {params.o_dir} -n 2"
+    shell("echo \"\" >> {cmd_log}")
+    shell: "echo \"make_otu_heatmap.py -i {input.biom} -o {output} -g png -m {input.map} --color_scheme=YlOrRd --width=6 --height=8 --dpi=150\" >> {cmd_log}\n"
+                  "make_otu_heatmap.py -i {input.biom} -o {output} -g png -m {input.map} --color_scheme=YlOrRd --width=6 --height=8 --dpi=150"
 
 # OTUs network graph that can be opened by Cytoscape
 rule OTU_network:
@@ -399,8 +442,10 @@ rule OTU_network:
     params:
         o_dir = "."
     message: "\n#    Creating OTU network..."
-    shell: "make_otu_network.py -m {input.map} -i {input.biom} -o {params.o_dir}"
+    shell: "echo \"make_otu_network.py -m {input.map} -i {input.biom} -o {params.o_dir}\" >> {cmd_log}\n"
+                  "make_otu_network.py -m {input.map} -i {input.biom} -o {params.o_dir}"
 
+H
 # This rule creates the bar charts that represent organism composition of each
 # samples. 
 # results are summarized in HTML file. But text files are also saved along side
@@ -420,9 +465,10 @@ rule sum_taxa:
     # species?), and type of grap (bar) in the result.
     # TODO: This summarize_taxa_params.txt should be able to be replaced
     # including the these lines in qiim_params.py
-    shell: "summarize_taxa_through_plots.py -f -i {input.biom} -m {input.map} -o {params.o_dir} "
-            "-p {_pipeline_dir}/summarize_taxa_params.txt;" \
-            "cat taxa_summary/log_*.txt > {log}"
+    shell: "echo \"summarize_taxa_through_plots.py -f -i {input.biom} -m {input.map} -o {params.o_dir}-p {_pipeline_dir}/summarize_taxa_params.txt\" >> {cmd_log}\n"
+                  "summarize_taxa_through_plots.py -f -i {input.biom} -m {input.map} -o {params.o_dir}-p {_pipeline_dir}/summarize_taxa_params.txt\n" 
+           "echo \"cat taxa_summary/log_*.txt > {log}\" >> {cmd_log}\n"
+                  "cat taxa_summary/log_*.txt > {log}"
 
 # This rule created the alpha rarefication curves
 # The parameter files are used here.
@@ -437,9 +483,10 @@ rule alpha_rarefaction:
     log: "logs/alpha_rarefaction.log"
     threads: 8
     message: "\n#    Creating alpha rarefaction plots..."
-    shell:"alpha_rarefaction.py -f -i {input.biom} -m {input.map} "
-           "-o {params.o_dir} -p qiime_params.txt -t  {input.tre} -a -O {threads};" \
-           "cat {params.o_dir}/log_*.txt > {log}"
+    shell:"echo \"alpha_rarefaction.py -f -i {input.biom} -m {input.map} -o {params.o_dir} -p qiime_params.txt -t  {input.tre} -a -O {threads}\" >> {cmd_log}\n"
+                 "alpha_rarefaction.py -f -i {input.biom} -m {input.map} -o {params.o_dir} -p qiime_params.txt -t  {input.tre} -a -O {threads}\n"
+          "echo \"cat {params.o_dir}/log_*.txt > {log}\" >> {cmd_log}\n"
+                 "cat {params.o_dir}/log_*.txt > {log}"
 
 # This rule crated the beta diversity plots
 rule beta_diversity:
@@ -458,10 +505,17 @@ rule beta_diversity:
     log: "logs/beta_diversity.log"
     threads: 8
     message: "\n#    Creating beta diversity plots..."
-    shell: 'line=`grep " Min:" {input.biom_summary}`; min=${{line:6}}; min=(${{min//./ }});' \
-           'beta_diversity_through_plots.py -f -i {input.biom} -m {input.map} -t {input.tre} ' \
-           '-e $min -p qiime_params.txt -a -O {threads} -o {params.o_dir};' \
-           'cat {params.o_dir}/log_*.txt > {log}'
+    shell("echo \"\" >> {cmd_log}")
+    shell("echo \"\" >> {cmd_log}")
+    shell("echo \"\" >> {cmd_log}"
+    shell: "echo \"line=`grep " Min:" {input.biom_summary}`; min=${{line:6}}; min=(${{min//./ }})\" >> {cmd_log}\n"
+                  'line=`grep " Min:" {input.biom_summary}`; min=${{line:6}}; min=(${{min//./ }})\n'
+           "echo \"beta_diversity_through_plots.py -f -i {input.biom} -m {input.map} -t {input.tre} "
+               "-e $min -p qiime_params.txt -a -O {threads} -o {params.o_dir}\" >> {cmd_log}\n"
+                  'beta_diversity_through_plots.py -f -i {input.biom} -m {input.map} -t {input.tre} '
+               '-e $min -p qiime_params.txt -a -O {threads} -o {params.o_dir}\n'
+           "echo \"cat {params.o_dir}/log_*.txt > {log}\" >> {cmd_log}\n"
+                 'cat {params.o_dir}/log_*.txt > {log}'
 
 # report rule required all deliverable files made by QIIME pipeline
 rule report:
@@ -475,6 +529,7 @@ rule report:
            "otus/rep_set.tre"
     output: "report.html"
     log: "logs/report.log"
+    shell("echo \"\" >> {cmd_log}")
     shell:
         "python {_pipeline_dir}/report.py {cfg_fn}"
 
