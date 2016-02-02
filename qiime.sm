@@ -191,7 +191,7 @@ rule preprocess:
                             "zcat {skewer_out}/trimmed.fastq.gz >> {output}")
 
                 elif namebits[-1].lower() == "sff":
-                    shell("source {QIIME}/activate.sh;process_sff.py -f -i {full_fn} -o {output}")
+                    shell("process_sff.py -f -i {full_fn} -o {output}")
         elif seq_type == "paired":
             # paired reads need to be merged in addition to trimming.
             min_overlap = config.get('paired_min_overlap', 10),
@@ -271,7 +271,6 @@ rule make_key:
 # The target file is the start point of QIIME analysis pipelines. This file
 # contains sequences that passed quality filter from all samples.
 
-# NOTE: source activate.sh probably is not needed after updating to QIIME 1.9
 rule split_libraries:
     input:["seq/{}_trimmed.fastq.gz".format(sample) for sample in config["samples"]]
         # seq =["seq/{}_trimmed.fastq.gz".format(sample) for sample in config["samples"]],
@@ -286,8 +285,7 @@ rule split_libraries:
         # -l {params.min_amplicon_length} -L {params.max_amplicon_length}
         o_dir = "sl_libraries"
     message: "\n#    Running split_libraries..."
-    shell: "source {QIIME}/activate.sh;" \
-           "split_libraries_fastq.py -i {params.sample_fq_list} --sample_id {params.sample_id_list} -o {params.o_dir} " \
+    shell: "split_libraries_fastq.py -i {params.sample_fq_list} --sample_id {params.sample_id_list} -o {params.o_dir} " \
            ' -q 14 --barcode_type "not-barcoded";' \
            'cp {params.o_dir}/split_library_log.txt logs/'
 
@@ -357,8 +355,7 @@ rule OTU_picking:
             with open(params.par, 'w') as f_out:
                 f_out.write(params_str)
             # with saved parameters run open_reference_otus.
-            shell("source {QIIME}/activate.sh;"\
-                  "echo pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
+            shell("echo pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
                   "     pick_open_reference_otus.py -f -i {input} -o {params.o_dir} -r {ref_db} -p {params.par} -f -a -O {threads};"\
                   "cat {params.o_dir}/log_*.txt >> {log}")
 
@@ -368,8 +365,7 @@ rule sortOTUs:
     output: "otus/otus_sorted.biom"
     log: "logs/sortOTUs.log"
     message: "\n#    Sort OTUs biom by SampleID"
-    shell: "source {QIIME}/activate.sh;"\
-           "sort_otu_table.py -i {input[0]} -s SampleID -m {input[1]} -o {output[0]}"
+    shell: "sort_otu_table.py -i {input[0]} -s SampleID -m {input[1]} -o {output[0]}"
 
 # This rule summarizes the OTU table with biom tool
 # biom tool has more function (export counts, percentage etc.) than sorting.
@@ -378,8 +374,7 @@ rule biom_summary:
     output: "otus/biom_summary.txt"
     log: "logs/biom_summary.log"
     message: "\n#    Creating biom_table_summary..."
-    shell: "source {QIIME}/activate.sh;"
-           "biom summarize-table -i {input} -o {output}"
+    shell: "biom summarize-table -i {input} -o {output}"
 
 # compare to earlier verion rich HTML heatmap is replaced with PNG heatmap
 rule OTU_heatmap:
@@ -391,8 +386,7 @@ rule OTU_heatmap:
     params:
         o_dir = "heatmap"
     message: "\n#    Making OTU heatmap..."
-    shell: "source {QIIME}/activate.sh;"
-            "make_otu_heatmap.py -i {input.biom} -o {output} -g png -m {input.map} --color_scheme=YlOrRd --width=6 --height=8 --dpi=150"
+    shell: "make_otu_heatmap.py -i {input.biom} -o {output} -g png -m {input.map} --color_scheme=YlOrRd --width=6 --height=8 --dpi=150"
            #"make_otu_heatmap.py -i {input.biom} -m {input.map} -o {params.o_dir} -n 2"
 
 # OTUs network graph that can be opened by Cytoscape
@@ -405,8 +399,7 @@ rule OTU_network:
     params:
         o_dir = "."
     message: "\n#    Creating OTU network..."
-    shell: "source {QIIME}/activate.sh;"
-           "make_otu_network.py -m {input.map} -i {input.biom} -o {params.o_dir}"
+    shell: "make_otu_network.py -m {input.map} -i {input.biom} -o {params.o_dir}"
 
 # This rule creates the bar charts that represent organism composition of each
 # samples. 
@@ -427,8 +420,7 @@ rule sum_taxa:
     # species?), and type of grap (bar) in the result.
     # TODO: This summarize_taxa_params.txt should be able to be replaced
     # including the these lines in qiim_params.py
-    shell: "source {QIIME}/activate.sh;"
-           "summarize_taxa_through_plots.py -f -i {input.biom} -m {input.map} -o {params.o_dir} "
+    shell: "summarize_taxa_through_plots.py -f -i {input.biom} -m {input.map} -o {params.o_dir} "
             "-p {_pipeline_dir}/summarize_taxa_params.txt;" \
             "cat taxa_summary/log_*.txt > {log}"
 
@@ -445,8 +437,7 @@ rule alpha_rarefaction:
     log: "logs/alpha_rarefaction.log"
     threads: 8
     message: "\n#    Creating alpha rarefaction plots..."
-    shell: "source {QIIME}/activate.sh;"
-           "alpha_rarefaction.py -f -i {input.biom} -m {input.map} "
+    shell:"alpha_rarefaction.py -f -i {input.biom} -m {input.map} "
            "-o {params.o_dir} -p qiime_params.txt -t  {input.tre} -a -O {threads};" \
            "cat {params.o_dir}/log_*.txt > {log}"
 
@@ -467,9 +458,7 @@ rule beta_diversity:
     log: "logs/beta_diversity.log"
     threads: 8
     message: "\n#    Creating beta diversity plots..."
-    shell:
-           "source {QIIME}/activate.sh;" \
-           'line=`grep " Min:" {input.biom_summary}`; min=${{line:6}}; min=(${{min//./ }});' \
+    shell: 'line=`grep " Min:" {input.biom_summary}`; min=${{line:6}}; min=(${{min//./ }});' \
            'beta_diversity_through_plots.py -f -i {input.biom} -m {input.map} -t {input.tre} ' \
            '-e $min -p qiime_params.txt -a -O {threads} -o {params.o_dir};' \
            'cat {params.o_dir}/log_*.txt > {log}'
@@ -490,19 +479,20 @@ rule report:
         "python {_pipeline_dir}/report.py {cfg_fn}"
 
 # Use this rule to copy deliverables to the user folder.
+workflowPNG = srcdir("Workflow.png")
 rule deliver:
     input: "report.html"
     params: dest_dir = config["delivery"]
     shell: """set -x
         [ -d {params.dest_dir} ] || mkdir -p {params.dest_dir}
-        chgrp -R BIOTECH\\brcdownloaders {params.dest_dir}
         [ -d {params.dest_dir}/otus ] || mkdir -p {params.dest_dir}/otus
         for f in biom_summary.txt otus_sorted.biom rep_set.fna rep_set.tre; do
             cp otus/$f {params.dest_dir}/otus
         done
         cp report.html {params.dest_dir}
-        cp Workflow.png {params.dest_dir}
+        cp {workflowPNG} {params.dest_dir}
         for f in heatmap otu_network arare bdiv heatmap sl_libraries taxa_summary; do
             cp -r $f {params.dest_dir}
         done
+        chgrp -R "BIOTECH\\brcdownloaders" {params.dest_dir}
         """
