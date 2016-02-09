@@ -19,6 +19,7 @@
         .center { text-align: center }
         .boldcentered { text-align: center; font-weight: bold }
         .tableholder {width: 900px; height: 600px; overflow-y: scroll}
+        .padded {padding-left: 15}
     </style>
 </head>
 <body>
@@ -68,23 +69,32 @@
 
     </table>
     <hr>
-    
-    
+
+
     <div class='left'><strong><a id='workflow' name='workflow'>Workflow Chart</a></strong></div>
         <img src="Workflow.png" alt="[Workflow Chart]">
-
-
+    <hr>
+    <div class='left'><strong><a id='files' name='files'>Key result files</a></strong></div>
+        <li><a href="sl_libraries/seqs.fna">Amplicon sequences</a>: sl_libraries/seqs.fna</li>
+        <li><a href="otus/rep_set.fna">Representive sequences</a>: otus/rep_set.fna</li>
+        <li><a href="taxa_summary/">Taxanomy summary</a>: taxa_summary/<li>
+        <li><a href="arare/alpha_div_collated/">&alpha; diversity</a>: arare/alpha_div_collated/</li>
+        <li><a href="bdiv/">&beta; diversity</a>bdiv/</li>
+    <hr>
     <div class="left"><strong><a id=taxa_summary name=taxa_summary>Taxa Summary</a></strong></div>
     <li><a href="{{taxa_url}}">View Full Interactive Taxa Summary</a></li>
    {{taxa_html}}
     <hr>
-    
-    <div class="left"><strong><a id=arare name=arare>Alpha Rarefaction</a></strong></div>
+
+    <div class="left"><strong><a id=arare name=arare>Alpha Rarefaction</a></strong> (<a href="http://qiime.org/scripts/alpha_rarefaction.html">documentation</a>) </div>
     <li><a href="{{arare_utl}}">View Alpha Rarefaction Plots</a></li>
     <img src="arare/alpha_rarefaction_plots/average_plots/observed_speciesSampleID.png" alt="[Alpha Rarefaction]">
     <hr>
 
-    <div class="left"><strong><a id=bdiv name=bdiv>Beta Diversity</a></strong></div>
+    <div class="left"><strong><a id=bdiv name=bdiv>Beta Diversity</a></strong> (<a href="http://qiime.org/scripts/beta_diversity_through_plots.html">documentation</a>) </div>
+    <!-- Uncomment if warning is needed
+    <font color="red">Warning: The results contains negative eigenvalues.</font> (<a href="http://scikit-bio.org/docs/0.2.2/generated/generated/skbio.stats.ordination.PCoA.html">documentation</a>)
+    -->
     {% for text, url in bdiv_text_url %}
         <li><a href="{{url}}">View {{text}}</a></li>
     {% endfor %}

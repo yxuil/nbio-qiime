@@ -1,4 +1,4 @@
-QIIME    =  "/mnt/software/qiime-dir/qiime-1.9.0/"
+QIIME    =  "/mnt/software/anaconda/envs/qiime1.9/bin/"
 SNAKEMAKE = "/mnt/software/anaconda/envs/py3/bin/snakemake"
 BAM2FASTX = "/mnt/software/tophat2/bam2fastx"
 FLASH    = "/mnt/software/flash-dir/FLAST-v1.2.7/flash"
@@ -7,8 +7,14 @@ CUTADAPT = "/mnt/software/anaconda/bin/cutadapt"
 # use "/mnt/software/cutadapt-dir/cutadapt-1.3/bin/cutadapt" on CentOS5
 # "/mnt/software/anaconda/bin/cutadapt" on CentOS6
 
-SKEWER   = "/mnt/software/skewer-dir/skewer-0.1.123-linux-x86_64"
+SKEWER   = "/mnt/software/skewer"
 
-GreenGene= "gg_13_8_otus"  # assuming gg database installed in QIIME path
-ITS      = "unite_14_12_its" # assuming its database installed in QIIME path
-Silva    = "Silva_111"
+# QIIME has greengene as default reference
+# to add/update other references, make a copy of <ref_name>/rep_set/*.fasta
+# files in QIIME_REF folder defined below. Keep the this default path, so
+# the pipeline compatible with QIIME provided ref databases.
+
+QIIME_REF= "/mnt/software/anaconda/envs/qiime1.9/lib/python2.7/site-packages/qiime_default_reference/"
+GreenGene= "gg_13_8_otus"    # assuming gg database installed in QIIME_REF
+ITS      = "unite_14_12_its" # assuming its database installed in QIIME_REF
+Silva    = "Silva_111_post"

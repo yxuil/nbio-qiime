@@ -14,6 +14,7 @@ qsub_default="qsub -V -cwd -j y -b y -o {log} -q all.q"
 if hash qsub 2>/dev/null; then
     # check snakemake installation. It should be updated whenever snakemake is
     # changed
+    source activate qiime1.9
     progPath=`dirname $0`
     snakemake_com=/mnt/software/anaconda/envs/py3/bin/snakemake
     if hash $snakemake_com 2>/dev/null; then

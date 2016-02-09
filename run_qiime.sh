@@ -14,6 +14,7 @@ echo "            "
 progPath=`dirname $0`
 snakemake_com="/mnt/software/anaconda/envs/py3/bin/snakemake"
 snakemake_file=qiime.sm
+source activate qiime1.9
 if hash $snakemake_com 2>/dev/null; then
     if [ -f $1 ]; then
         cfg=$1

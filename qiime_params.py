@@ -1,3 +1,4 @@
+# template for qiime config file
 qiime_params_template="""
 #parameters for QIIME pipelines
 
@@ -7,8 +8,8 @@ pick_otus:max_rejects 8
 pick_otus:stepwords 8
 pick_otus:word_length 8
 
-assign_taxonomy:id_to_taxonomy_fp {QIIME}/qiime_default_reference/{REF}/taxonomy/{HOMOLOGY}_otu_taxonomy.txt
-assign_taxonomy:reference_seqs_fp {QIIME}/qiime_default_reference/{REF}/rep_set/{HOMOLOGY}_otus.fasta
+assign_taxonomy:id_to_taxonomy_fp {otu_taxonomy_txt}
+assign_taxonomy:reference_seqs_fp {rep_set_fasta}
 
 summarize_taxa:level    2,3,4,5,6,7
 plot_taxa_summary:chart_type    bar
@@ -21,3 +22,9 @@ beta_diversity:metrics {bMETRICS}
 #unweighted_unifrac,weighted_unifrac <- 16S
 #bray_curtis <- ITS
 """
+# default values for pipeline
+_default_log_dir = "logs"
+_default_trim_length = "5"
+_default_min_overlap = 10
+_default_max_overlap = 250
+_default_split_lib_Q = 14
