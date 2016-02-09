@@ -7,7 +7,7 @@ CUTADAPT = "/mnt/software/anaconda/bin/cutadapt"
 # use "/mnt/software/cutadapt-dir/cutadapt-1.3/bin/cutadapt" on CentOS5
 # "/mnt/software/anaconda/bin/cutadapt" on CentOS6
 
-SKEWER   = "/mnt/software/skewer"
+SKEWER   = "/mnt/software/skewer/skewer"
 
 # QIIME has greengene as default reference
 # to add/update other references, make a copy of <ref_name>/rep_set/*.fasta
